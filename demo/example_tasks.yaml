@@ -1,0 +1,7 @@
+# Example environment.yaml
+
+environment:
+- MYVAR: myvalue
+
+script:
+- echo "Starting up.."

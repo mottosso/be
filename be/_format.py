@@ -13,8 +13,8 @@ def development_directory(templates, inventory, project, item, type):
 
     """
 
-    template = template_from_item(inventory, project, item)
-    pattern = pattern_from_template(templates, project, template)
+    template = template_from_item(inventory, item)
+    pattern = pattern_from_template(templates, template)
 
     keys = {
         "cwd": os.getcwd(),
@@ -47,11 +47,11 @@ def project_dir(root, project):
     return os.path.join(root, project)
 
 
-def pattern_from_template(templates, project, name):
+def pattern_from_template(templates, name):
     """Return pattern for name
 
     Arguments:
-        project: Name of project
+        templates (dict): Current templates
         name (str): Name of name
 
     """
@@ -63,7 +63,19 @@ def pattern_from_template(templates, project, name):
     return templates[name]
 
 
-def template_from_item(inventory, project, item):
+def items_from_inventory(inventory):
+    items_ = list()
+    for template, items in inventory.iteritems():
+        for item in items:
+            if item in items_:
+                sys.stderr.write("Warning: Duplicate item found "
+                                 "for \"%s\"" % item)
+                continue
+            items_.append(item)
+    return items_
+
+
+def template_from_item(inventory, item):
     """Return template name for `item`
 
     Arguments:
@@ -72,29 +84,38 @@ def template_from_item(inventory, project, item):
 
     """
 
-    items = dict()
+    templates = dict()
     for template, items_ in inventory.iteritems():
         for item_ in items_:
             if isinstance(item_, dict):
                 item_ = item_.keys()[0]
             item_ = str(item_)  # Key may be number
-            if item_ in items:
+            if item_ in templates:
                 print("Warning: Duplicate template found "
                       "for \"%s:%s\"" % (template, item))
-            items[item_] = template
+            templates[item_] = template
 
     try:
-        return items[item]
+        return templates[item]
 
     except KeyError:
         sys.stderr.write("\"%s\" not found" % item)
-        if items:
+        if templates:
             sys.stderr.write("\nAvailable:")
-            for item_ in sorted(items, key=lambda a: (items[a], a)):
-                sys.stderr.write("\n- %s|%s" % (items[item_], item_))
+            for item_ in sorted(templates, key=lambda a: (templates[a], a)):
+                sys.stderr.write("\n- %s|%s" % (templates[item_], item_))
         sys.exit(1)
 
 
 def test_cdd():
     os.chdir("../demo")
     development_directory("thedeal", "ben", "rig")
+
+
+if __name__ == "__main__":
+    inventory = {
+        "character": ["ben", "jerry"],
+        "prop": ["table"],
+        "shot": [1000, 2000]
+    }
+    print items_from_inventory(inventory)
