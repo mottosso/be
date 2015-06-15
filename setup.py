@@ -27,7 +27,7 @@ classifiers = [
 setup(
     name="be",
     version=version,
-    description="Minimal environment management system",
+    description="Minimal asset management system",
     long_description=readme,
     author="Abstract Factory",
     author_email="marcus@abstractfactory.com",
@@ -36,7 +36,16 @@ setup(
     packages=find_packages(),
     zip_safe=False,
     classifiers=classifiers,
+    package_data={
+        "be": ["*.sh", "*.bat"],
+    },
     entry_points={
         "console_scripts": ["be = be.cli:main"]
     },
 )
+
+if os.name != "nt":
+    import subprocess
+    shell = os.path.abspath(os.path.join("be", "_shell.sh"))
+    if not subprocess.call(["chmod", "+x", shell]):
+        print "WARNING: Could not set executable bit on subshell"

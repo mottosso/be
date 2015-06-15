@@ -15,17 +15,18 @@ import subprocess
 
 import _format
 import _extern
+import lib
 
 from vendor import click
 
 self = type("Scope", (object,), {})()
-self.root = os.getcwd()
-self.isactive = lambda: True if os.environ.get("BE_ACTIVE") else False
+self.root = lambda: os.getcwd().replace("\\", "/")
+self.isactive = lambda: "BE_ACTIVE" in os.environ
 
 
 @click.group()
 def main():
-    r"""be - Minimal Asset Management System
+    """be - Minimal Asset Management System
 
     be initialises a context-sensitive environment for
     your project. Use "new" to start a new project, followed
@@ -49,9 +50,9 @@ def main():
         $ be in spiderman/peter/model
         # Print environment
         $ be dump
-        BE_PROJECT=spiderman
-        BE_ITEM=peter
-        BE_TYPE=model
+        PROJECT=spiderman
+        ITEM=peter
+        TYPE=model
 
     \b
     Environment:
@@ -68,7 +69,9 @@ def main():
 
 @click.command(name="in")
 @click.argument("context")
-def in_(context):
+@click.option("-y", "--yes", is_flag=True,
+              help="Automatically accept any questions")
+def in_(context, yes):
     """Set the current context to `context`
 
     \b
@@ -83,7 +86,7 @@ def in_(context):
         sys.stderr.write("Invalid syntax, the format is project/item/type")
         sys.exit(1)
 
-    project_dir = _format.project_dir(self.root, project)
+    project_dir = _format.project_dir(self.root(), project)
     if not os.path.exists(project_dir):
         sys.stderr.write("Project \"%s\" not found. " % project)
         sys.exit(1)
@@ -94,8 +97,14 @@ def in_(context):
     development_dir = _format.development_directory(
         templates, inventory, project, item, type)
     if not os.path.exists(development_dir):
-        sys.stdout.write("No development directory found. Create? [Y/n]: ")
-        if raw_input().lower() in ("", "y", "yes"):
+        create = False
+        if yes:
+            create = True
+        else:
+            sys.stdout.write("No development directory found. Create? [Y/n]: ")
+            if raw_input().lower() in ("", "y", "yes"):
+                create = True
+        if create:
             os.makedirs(development_dir)
         else:
             sys.stdout.write("Cancelled")
@@ -107,16 +116,24 @@ def in_(context):
     else:
         shell = os.path.join(dirname, "_shell.sh")
 
-    sys.exit(subprocess.call(shell, shell=True, env=dict(
-        os.environ,
-        BE_ACTIVE="true",
-        BE_PROJECTSROOT=self.root,
-        BE_PROJECTROOT=os.path.join(self.root, project),
-        BE_DEVELOPMENTDIR=development_dir,
-        BE_PROJECT=project,
-        BE_ITEM=item,
-        BE_TYPE=type)
-    ))
+    env = {
+        "BE_PROJECT": project,
+        "BE_ITEM": item,
+        "BE_TYPE": type,
+        "BE_DEVELOPMENTDIR": development_dir,
+        "BE_PROJECTROOT": os.path.join(
+            self.root(), project).replace("\\", "/"),
+        "BE_PROJECTSROOT": self.root(),
+        "BE_ACTIVE": "true",
+    }
+
+    if "BE_TESTING" in os.environ:
+        os.chdir(development_dir)
+        os.environ.update(env)
+        return
+
+    sys.exit(subprocess.call(shell, shell=True,
+             env=dict(os.environ, **env)))
 
 
 @click.command()
@@ -135,7 +152,7 @@ def new(name):
         click.echo("Please exit current project before starting a new")
         sys.exit(1)
 
-    new_dir = os.path.join(self.root, name)
+    new_dir = _format.project_dir(self.root(), name)
 
     if not os.path.exists(new_dir):
         _extern.create_new(new_dir)
@@ -158,11 +175,20 @@ def ls():
 
     """
 
-    for project in os.listdir(self.root):
-        abspath = os.path.join(self.root, project)
-        if not os.path.isdir(abspath):
+    projects = list()
+    for project in os.listdir(self.root()):
+        abspath = os.path.join(self.root(), project)
+        if not lib.isproject(abspath):
             continue
+        projects.append(project)
+
+    if not projects:
+        click.echo("Empty")
+        sys.exit(0)
+
+    for project in projects:
         click.echo("- %s" % project)
+    sys.exit(0)
 
 
 @click.command()
@@ -182,13 +208,10 @@ def dump():
     if not self.isactive():
         click.echo("No environment")
     else:
-        for key in ("BE_PROJECT",
-                    "BE_ITEM",
-                    "BE_TYPE"
-                    "BE_DEVELOPMENTDIR",
-                    "BE_PROJECTROOT",
-                    "BE_PROJECTSROOT"):
-            click.echo("%s=%s" % (key, os.environ.get(key)))
+        for key, value in sorted(os.environ.iteritems()):
+            if not key.startswith("BE_"):
+                continue
+            click.echo("%s=%s" % (key[3:], os.environ.get(key)))
 
 
 main.add_command(in_)

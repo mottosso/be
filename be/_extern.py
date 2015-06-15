@@ -6,19 +6,19 @@ from vendor import yaml
 
 _cache = dict()
 
+default_templates = {
+    "asset": "{cwd}/{project}/assets/{item}/{type}",
+    "shot": "{cwd}/{project}/shots/{item}/{type}"
+}
+
+defaults_inventory = {
+    "asset": ["peter", "maryjane"],
+    "shot": [1000, 2000]
+}
+
 
 def create_new(new_dir):
     os.makedirs(new_dir)
-
-    default_templates = {
-        "asset": "{cwd}/{project}/assets/{item}/{type}",
-        "shot": "{cwd}/{project}/shots/{item}/{type}"
-    }
-
-    defaults_inventory = {
-        "asset": ["peter", "maryjane"],
-        "shot": [1000, 2000]
-    }
 
     with open(os.path.join(new_dir, "templates.yaml"), "w") as f:
         yaml.dump(default_templates, f, default_flow_style=False)
