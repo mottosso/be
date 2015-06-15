@@ -1,0 +1,6 @@
+# Example users.yaml
+
+- marcus
+- eric
+- lucas:
+    group: "admin"

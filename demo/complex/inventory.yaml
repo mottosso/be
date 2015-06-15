@@ -1,0 +1,30 @@
+asset:
+- ben
+- jerry:
+    description: "Handsome fellow"
+- hand
+- table
+- desk
+- cup
+- bangGraphic
+- speecBubble
+- gunA
+- gunB
+- window
+
+shot:
+- 1000:
+    startFrame: 1001
+    endFrame: 1214
+- 2000:
+    startFrame: 1001
+    endFrame: 1050
+- 2100:
+    startFrame: 1001
+    endFrame: 1309
+- 2400:
+    startFrame: 1001
+    endFrame: 1090
+- 3000:
+    startFrame: 1001
+    endFrame: 1054
