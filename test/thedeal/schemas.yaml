@@ -1,0 +1,3 @@
+project: "{cwd}/{project}"
+asset: "{@project}/assets/{asset}/{family}/private/{user}"
+shot: "{@project}/film/{asset}/private/{user}"

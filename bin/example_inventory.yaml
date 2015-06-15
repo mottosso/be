@@ -1,0 +1,15 @@
+# Example inventory.yaml
+
+asset:
+- ben
+- jerry
+- bob:
+    description: "Handsome fellow"
+
+shot:
+- 1000
+- 2000
+
+abc:
+- custom
+- template
