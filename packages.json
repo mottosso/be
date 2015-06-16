@@ -3,7 +3,7 @@
     "packages": [
         {
             "name": "helloworld",
-            "repository": "https://github.com/mottosso/be-helloworld.git",
+            "repository": "https://github.com/mottosso/be-helloworld.git"
         }
     ]
 }
