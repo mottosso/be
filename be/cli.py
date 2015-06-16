@@ -21,8 +21,6 @@ import lib
 from vendor import click
 
 self = type("Scope", (object,), {})()
-self.home = os.path.dirname(__file__)
-self.root = lambda: os.getcwd().replace("\\", "/")
 self.isactive = lambda: "BE_ACTIVE" in os.environ
 
 
@@ -89,7 +87,7 @@ def in_(ctx, context, yes):
         sys.stderr.write("Invalid syntax, the format is project/item/type")
         sys.exit(1)
 
-    project_dir = _format.project_dir(self.root(), project)
+    project_dir = _format.project_dir(_extern.cwd(), project)
     if not os.path.exists(project_dir):
         lib.echo("Project \"%s\" not found. " % project)
         lib.echo("\nAvailable:")
@@ -127,8 +125,8 @@ def in_(ctx, context, yes):
         "BE_TYPE": type,
         "BE_DEVELOPMENTDIR": development_dir,
         "BE_PROJECTROOT": os.path.join(
-            self.root(), project).replace("\\", "/"),
-        "BE_PROJECTSROOT": self.root(),
+            _extern.cwd(), project).replace("\\", "/"),
+        "BE_PROJECTSROOT": _extern.cwd(),
         "BE_ACTIVE": "true",
     }
 
@@ -165,9 +163,16 @@ def new(preset, name, silent, update):
         sys.exit(1)
 
     if not name:
+        count = 0
         name = lib.random_name()
+        while name in _extern.projects():
+            if count > 10:
+                lib.echo("Error: Couldn't come up with a unique name :(")
+                sys.exit(1)
+            name = lib.random_name()
+            count += 1
 
-    new_dir = _format.project_dir(self.root(), name)
+    new_dir = _format.project_dir(_extern.cwd(), name)
     if os.path.exists(new_dir):
         lib.echo("\"%s\" already exists" % name)
         sys.exit(1)
@@ -269,8 +274,8 @@ def ls():
     """
 
     projects = list()
-    for project in os.listdir(self.root()):
-        abspath = os.path.join(self.root(), project)
+    for project in os.listdir(_extern.cwd()):
+        abspath = os.path.join(_extern.cwd(), project)
         if not lib.isproject(abspath):
             continue
         projects.append(project)
@@ -279,7 +284,7 @@ def ls():
         lib.echo("Empty")
         sys.exit(0)
 
-    for project in projects:
+    for project in sorted(projects):
         lib.echo("- %s" % project)
     sys.exit(0)
 
@@ -292,7 +297,17 @@ def preset():
 @click.command()
 @click.option("--remote", is_flag=True, help="List remote presets")
 def preset_ls(remote):
-    """List presets"""
+    """List presets
+
+    \b
+    Usage:
+        $ be preset ls
+        - ad
+        - game
+        - film
+
+    """
+
     if remote:
         presets = _extern.github_presets()
     else:
@@ -301,7 +316,7 @@ def preset_ls(remote):
     if not presets:
         lib.echo("No presets found")
         sys.exit(0)
-    for preset in presets:
+    for preset in sorted(presets):
         lib.echo("- %s" % preset)
     sys.exit(0)
 

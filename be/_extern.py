@@ -1,3 +1,13 @@
+"""External access module
+
+Attributes:
+    _cache: Store configuration files after having been loaded
+    _home: Absolute path to the `be` Python package directory
+    _headers: Optional GitHub authentication headers
+    _files: Files supported in remote presets
+
+"""
+
 import os
 import re
 import sys
@@ -6,14 +16,21 @@ import shutil
 from vendor import yaml
 from vendor import requests
 
+import lib
+
+# Environment variables
+BE_PRESETSDIR = "BE_PRESETSDIR"
+BE_GITHUB_USERNAME = "BE_GITHUB_USERNAME"
+BE_GITHUB_API_TOKEN = "BE_GITHUB_API_TOKEN"
+
 # Temporarily disable warning about SSL on Python < 2.7.9
 requests.packages.urllib3.disable_warnings()
 
 _cache = dict()
 _home = os.path.dirname(__file__)
 _headers = {
-  "X-Github-Username": os.environ.get("BE_GITHUB_USERNAME"),
-  "X-Github-API-Token": os.environ.get("BE_GITHUB_API_TOKEN")
+  "X-Github-Username": os.environ.get(BE_GITHUB_USERNAME),
+  "X-Github-API-Token": os.environ.get(BE_GITHUB_API_TOKEN)
 }
 _files = [
     "be.yaml",
@@ -25,30 +42,96 @@ _files = [
 ]
 
 
+def home():
+    """Return be Python package directory"""
+    return os.path.dirname(__file__)
+
+
+def cwd():
+    """Return the be current working directory"""
+    return os.getcwd().replace("\\", "/")
+
+
+def load_templates(project):
+    """Return templates given name of project
+
+    Arguments:
+        project (str): Name of project
+
+    """
+
+    return resolve_references(load(project, "templates"))
+
+
+def load_inventory(project):
+    """Return available inventory from cwd
+
+    Arguments:
+        project (str): Name of project
+
+    """
+
+    return load(project, "inventory")
+
+
+def load_be(project):
+    return load(project, "be")
+
+
+def load(project, fname):
+    if fname not in _cache:
+        path = os.path.join(cwd(), project, "%s.yaml" % fname)
+        try:
+            with open(path) as f:
+                _cache[fname] = yaml.load(f) or dict()
+        except IOError:
+            sys.stderr.write("PROJECT ERROR: %s.yaml not "
+                             "defined for project \"%s\"" % (fname, project))
+            sys.exit(1)
+
+    return _cache[fname]
+
+
 def projects():
     """Return list of available projects"""
-    return os.listdir(os.getcwd())
+    return os.listdir(cwd())
 
 
 def presets_dir():
     """Return presets directory"""
-    default_root = os.path.join(os.path.expanduser("~"), ".be", "presets")
-    root = os.environ.get("BE_PRESETSDIR", default_root)
-    if not os.path.exists(root):
-        os.makedirs(root)
-    return root
+    default_presets_dir = os.path.join(os.path.expanduser("~"), ".be", "presets")
+    presets_dir = os.environ.get(BE_PRESETSDIR, default_presets_dir)
+    if not os.path.exists(presets_dir):
+        os.makedirs(presets_dir)
+    return presets_dir
 
 
 def api_from_repo(endpoint):
-    """Produce an api endpoint from a repo address"""
-    api_endpoint = endpoint.split("github.com", 1)[-1]
-    api_endpoint = api_endpoint.rsplit(".git", 1)[0]
-    return "https://api.github.com/repos" + api_endpoint
+    """Produce an api endpoint from a repo address
+
+    Arguments:
+        endpoint (str): username/repo combination,
+            e.g. mottosso/be-ad
+
+    """
+
+    return "https://api.github.com/repos/" + endpoint
 
 
 def remove_preset(preset):
+    """Physically delete local preset
+
+    Arguments:
+        preset (str): Name of preset
+
+    """
+
     preset_dir = os.path.join(presets_dir(), preset)
-    shutil.rmtree(preset_dir)
+
+    try:
+        shutil.rmtree(preset_dir)
+    except IOError:
+        lib.echo("\"%s\" did not exist" % preset)
 
 
 def pull_preset(repository, preset_dir):
@@ -101,46 +184,6 @@ def copy_preset(preset_dir, dest):
     for fname in os.listdir(preset_dir):
         src = os.path.join(preset_dir, fname)
         shutil.copy2(src, dest)
-
-
-def load_templates(project):
-    """Return templates given name of project
-
-    Arguments:
-        project (str): Name of project
-
-    """
-
-    return resolve_references(load(project, "templates"))
-
-
-def load_inventory(project):
-    """Return available inventory from cwd
-
-    Arguments:
-        project (str): Name of project
-
-    """
-
-    return load(project, "inventory")
-
-
-def load_be(project):
-    return load(project, "be")
-
-
-def load(project, fname):
-    if fname not in _cache:
-        path = os.path.join(os.getcwd(), project, "%s.yaml" % fname)
-        try:
-            with open(path) as f:
-                _cache[fname] = yaml.load(f) or dict()
-        except IOError:
-            sys.stderr.write("PROJECT ERROR: %s.yaml not "
-                             "defined for project \"%s\"" % (fname, project))
-            sys.exit(1)
-
-    return _cache[fname]
 
 
 def resolve_references(templates):
