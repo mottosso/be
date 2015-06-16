@@ -2,6 +2,8 @@ import os
 import sys
 import getpass
 
+import lib
+
 
 def development_directory(templates, inventory, project, item, type):
     """Return absolute path to development directory
@@ -27,10 +29,10 @@ def development_directory(templates, inventory, project, item, type):
     try:
         return pattern.format(**keys).replace("\\", "/")
     except KeyError as exc:
-        sys.stderr.write("TEMPLATE ERROR: %s is not an available key\n" % exc)
-        sys.stderr.write("Available keys")
+        lib.echo("TEMPLATE ERROR: %s is not an available key\n" % exc)
+        lib.echo("Available keys")
         for key in keys:
-            sys.stderr.write("\n- %s" % key)
+            lib.echo("\n- %s" % key)
         sys.exit(1)
 
 
@@ -57,7 +59,7 @@ def pattern_from_template(templates, name):
     """
 
     if name not in templates:
-        sys.stderr.write("No template named \"%s\"" % name)
+        lib.echo("No template named \"%s\"" % name)
         sys.exit(1)
 
     return templates[name]
@@ -68,8 +70,8 @@ def items_from_inventory(inventory):
     for template, items in inventory.iteritems():
         for item in items:
             if item in items_:
-                sys.stderr.write("Warning: Duplicate item found "
-                                 "for \"%s\"" % item)
+                lib.echo("Warning: Duplicate item found, "
+                         "for \"%s\"" % item)
                 continue
             items_.append(item)
     return items_
@@ -99,11 +101,11 @@ def template_from_item(inventory, item):
         return templates[item]
 
     except KeyError:
-        sys.stderr.write("\"%s\" not found" % item)
+        lib.echo("\"%s\" not found" % item)
         if templates:
-            sys.stderr.write("\nAvailable:")
+            lib.echo("\nAvailable:")
             for item_ in sorted(templates, key=lambda a: (templates[a], a)):
-                sys.stderr.write("\n- %s|%s" % (templates[item_], item_))
+                lib.echo("- %s (%s)" % (item_, templates[item_]))
         sys.exit(1)
 
 

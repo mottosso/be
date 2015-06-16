@@ -73,7 +73,8 @@ def main():
 @click.argument("context")
 @click.option("-y", "--yes", is_flag=True,
               help="Automatically accept any questions")
-def in_(context, yes):
+@click.pass_context
+def in_(ctx, context, yes):
     """Set the current context to `context`
 
     \b
@@ -90,7 +91,9 @@ def in_(context, yes):
 
     project_dir = _format.project_dir(self.root(), project)
     if not os.path.exists(project_dir):
-        sys.stderr.write("Project \"%s\" not found. " % project)
+        lib.echo("Project \"%s\" not found. " % project)
+        lib.echo("\nAvailable:")
+        ctx.invoke(ls)
         sys.exit(1)
 
     templates = _extern.load_templates(project)
@@ -138,12 +141,6 @@ def in_(context, yes):
              env=dict(os.environ, **env)))
 
 
-def echo(text, silent=False, newline=True):
-    if silent:
-        return
-    click.echo(text) if newline else sys.stdout.write(text)
-
-
 @click.command()
 @click.argument("preset")
 @click.option("--name", default="blue_unicorn")
@@ -161,12 +158,12 @@ def new(preset, name, silent):
     """
 
     if self.isactive():
-        echo("Please exit current preset before starting a new")
+        lib.echo("Please exit current preset before starting a new")
         sys.exit(1)
 
     new_dir = _format.project_dir(self.root(), name)
     if os.path.exists(new_dir):
-        sys.stderr.write("\"%s\" already exists" % name)
+        lib.echo("\"%s\" already exists" % name)
         sys.exit(1)
 
     presets_dir = _extern.presets_dir()
@@ -177,7 +174,7 @@ def new(preset, name, silent):
             _extern.copy_preset(preset_dir, new_dir)
 
         else:
-            echo("Finding preset for \"%s\".. " % preset, silent)
+            lib.echo("Finding preset for \"%s\".. " % preset, silent)
             time.sleep(1 if silent else 0)
             presets = _extern.github_presets()
 
@@ -188,20 +185,20 @@ def new(preset, name, silent):
             time.sleep(1 if silent else 0)
             repository = presets[preset]
 
-            echo("Pulling %s.. " % repository, silent)
+            lib.echo("Pulling %s.. " % repository, silent)
             try:
                 _extern.pull_preset(repository, preset_dir)
             except IOError as e:
-                echo(e)
+                lib.echo(e)
                 sys.exit(1)
 
             _extern.copy_preset(preset_dir, new_dir)
 
     except IOError:
-        echo("ERROR: Could not write, do you have permission?")
+        lib.echo("ERROR: Could not write, do you have permission?")
         sys.exit(1)
 
-    echo("\"%s\" created" % name, silent, newline=False)
+    lib.echo("\"%s\" created" % name, silent)
 
 
 @click.command()
@@ -226,8 +223,8 @@ def update(preset, clean):
         sys.stdout.write("\"%s\" not found" % preset)
         sys.exit(1)
 
-    echo("Are you sure you want to update \"%s\", "
-         "any changes will be lost?: [y/N]: ", newline=False)
+    lib.echo("Are you sure you want to update \"%s\", "
+             "any changes will be lost?: [y/N]: ", newline=False)
     if raw_input().lower() in ("y", "yes"):
         presets_dir = _extern.presets_dir()
         preset_dir = os.path.join(presets_dir, preset)
@@ -238,19 +235,19 @@ def update(preset, clean):
             try:
                 _extern.remove_preset()
             except:
-                echo("Error: Could not clean existing preset")
+                lib.echo("Error: Could not clean existing preset")
                 sys.exit(1)
 
-        echo("Updating %s.. " % repository)
+        lib.echo("Updating %s.. " % repository)
 
         try:
             _extern.pull_preset(repository, preset_dir)
         except IOError as e:
-            echo(e)
+            lib.echo(e)
             sys.exit(1)
 
     else:
-        echo("Cancelled")
+        lib.echo("Cancelled")
 
 
 @click.command()
@@ -273,11 +270,11 @@ def ls():
         projects.append(project)
 
     if not projects:
-        click.echo("Empty")
+        lib.echo("Empty")
         sys.exit(0)
 
     for project in projects:
-        click.echo("- %s" % project)
+        lib.echo("- %s" % project)
     sys.exit(0)
 
 
@@ -296,10 +293,10 @@ def preset_ls(remote):
         presets = _extern.local_presets()
 
     if not presets:
-        echo("No presets found", newline=False)
+        lib.echo("No presets found")
         sys.exit(0)
     for preset in presets:
-        echo("- %s" % preset)
+        lib.echo("- %s" % preset)
     sys.exit(0)
 
 
@@ -316,10 +313,9 @@ def preset_find(query):
 
     found = _extern.github_presets().get(query)
     if found:
-        echo(found, newline=False)
+        lib.echo(found)
     else:
-        echo("Unable to locate preset \"%s\"" % query,
-             newline=False)
+        lib.echo("Unable to locate preset \"%s\"" % query)
 
 
 @click.command()
@@ -343,7 +339,7 @@ def dump():
     for key, value in sorted(os.environ.iteritems()):
         if not key.startswith("BE_"):
             continue
-        click.echo("%s=%s" % (key[3:], os.environ.get(key)))
+        lib.echo("%s=%s" % (key[3:], os.environ.get(key)))
     sys.exit(0)
 
 

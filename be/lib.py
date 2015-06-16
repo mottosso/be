@@ -1,5 +1,5 @@
 import os
-import shutil
+import sys
 
 
 def isproject(path):
@@ -20,3 +20,8 @@ def isproject(path):
         return False
     return True
 
+
+def echo(text, silent=False, newline=True):
+    if silent:
+        return
+    print(text) if newline else sys.stdout.write(text)

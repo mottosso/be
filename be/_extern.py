@@ -25,6 +25,11 @@ _files = [
 ]
 
 
+def projects():
+    """Return list of available projects"""
+    return os.listdir(os.getcwd())
+
+
 def presets_dir():
     """Return presets directory"""
     default_root = os.path.join(os.path.expanduser("~"), ".be", "presets")
