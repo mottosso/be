@@ -44,26 +44,26 @@ def invoke(runner, args):
     return runner.invoke(be.cli.main, args)
 
 
-def test_new():
-    """$be new"""
-    runner = CliRunner()
-    with runner.isolated_filesystem():
-        result = invoke(runner, ["new", "spiderman"])
-        assert_true("created" in result.output.split("\n")[0])
+# def test_new():
+#     """$be new"""
+#     runner = CliRunner()
+#     with runner.isolated_filesystem():
+#         result = invoke(runner, ["new", "ad"])
+#         assert_true("created" in result.output.split("\n")[0])
 
 
-@with_setup(clean_setup, clean_teardown)
-def test_in():
-    """$be in"""
+# @with_setup(clean_setup, clean_teardown)
+# def test_in():
+#     """$be in"""
 
-    runner = CliRunner()
-    with runner.isolated_filesystem():
-        cwd = os.getcwd().replace("\\", "/")
-        invoke(runner, ["new", "spiderman"])
-        invoke(runner, ["in", "spiderman/peter/model", "-y"])
-        new_cwd = self.test_templates["asset"].format(
-            cwd=cwd,
-            project="spiderman",
-            item="peter",
-            type="model").replace("\\", "/")
-        assert_equals(os.getcwd().replace("\\", "/"), new_cwd)
+#     runner = CliRunner()
+#     with runner.isolated_filesystem():
+#         cwd = os.getcwd().replace("\\", "/")
+#         invoke(runner, ["new", "spiderman"])
+#         invoke(runner, ["in", "spiderman/peter/model", "-y"])
+#         new_cwd = self.test_templates["asset"].format(
+#             cwd=cwd,
+#             project="spiderman",
+#             item="peter",
+#             type="model").replace("\\", "/")
+#         assert_equals(os.getcwd().replace("\\", "/"), new_cwd)

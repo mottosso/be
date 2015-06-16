@@ -1,0 +1,20 @@
+language: python
+python:
+- 2.6
+- 2.7
+install:
+- pip install coveralls
+script:
+- python run_testsuite.py
+after_success:
+- coveralls
+deploy:
+  provider: pypi
+  user: mottosso
+  distributions: "sdist"
+  password:
+    secure: oJ2WDbiMyNzK/udkmhcPQYiA76N52kBi2Rb8gw4iqx6oGk4BtjIx3JP9TrcbNICSDAuun28wfAWybhlsYkdjO8Rc4T6SnjWwkh+pypDfjKE12XqhFGz612iuvT7SzNOW62VsdDYLh9TGMWNs/rKTivcPPwSnS9T47k4BgCz5CZN/VxH8dOVKMmWUHNPUD7gr/wl4HgEq+tV969tb0rbr8lrpH65H+KcmA2/diKJV70jHOrhcz0Wm/eSDk3H89rFMa8gd6lOcq4gNkQVtGca6QUpFmEzGlNRV9wi6t5hdfXQP9WM78s23BJwPNU45fzmfBIswA9kfs9uFU+uhpf5A3GfRMRsf2l7ViNbLq2t5+lh9TB0xLY1dvN4DSsf5XjwAn9ip4vit8cAopbUnmRnT5IYdJ2LeKggxxXZ0aYYEMn8OBot33GFpVP9/H8z/GZ3HTI1aCPoy8zbU/761I1a3HEn3e3TzeTFqyn2fhC7tRFcGUv76wziaZSpH4KPk8mlogpCUM9i7qU/Pz+AfJ83Dj8j1YnCGGNuWEFaY6gXx0oW5cDTJE5SkRWV+14qMqqJ/FN3luf8SvfHmjY8n5fzNxE1vdDCQySAHREGIQFsaB7RiwaW3KSwsYWH3pdYbffuWZR8ftwGp5QcS8oD2F7ufTBGj2Y9R/k/Z5MV5K54flT8=
+  on:
+    tags: true
+    all_branches: true
+    python: 2.6
