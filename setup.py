@@ -54,7 +54,7 @@ if os.name != "nt":
         import subprocess
         shell = os.path.dirname(__file__)
         shell = os.path.join(shell, "be", "_shell.sh")
-        print "I: Setting executable bit on %s" % shell
+        print "Setting executable bit on %s" % shell
         if subprocess.call(["chmod", "+x", shell]) != 0:
-            print "W: Could not set executable bit on subshell"
+            print "WARNING: Could not set executable bit on subshell"
         os.environ["BE_BITSET"] = "1"
