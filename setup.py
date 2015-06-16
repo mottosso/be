@@ -1,3 +1,5 @@
+import platform
+from distutils.version import StrictVersion
 from setuptools import setup, find_packages
 
 with open("README.md") as f:
@@ -23,6 +25,8 @@ classifiers = [
     "Topic :: Utilities"
 ]
 
+if StrictVersion(platform.python_version()) < StrictVersion("2.7.9"):
+    print "WARNING: Python < 2.7.9 detected, disabling remote preset access"
 
 setup(
     name="be",
@@ -31,7 +35,7 @@ setup(
     long_description=readme,
     author="Abstract Factory",
     author_email="marcus@abstractfactory.com",
-    url="https://github.com/abstractfactory/be",
+    url="https://github.com/mottosso/be",
     license="LGPLv2.1",
     packages=find_packages(),
     zip_safe=False,
@@ -41,11 +45,16 @@ setup(
     },
     entry_points={
         "console_scripts": ["be = be.cli:main"]
-    },
+    }
 )
 
 if os.name != "nt":
-    import subprocess
-    shell = os.path.abspath(os.path.join("be", "_shell.sh"))
-    if not subprocess.call(["chmod", "+x", shell]):
-        print "WARNING: Could not set executable bit on subshell"
+    import os
+    if "BE_BITSET" not in os.environ:
+        import subprocess
+        shell = os.path.dirname(__file__)
+        shell = os.path.join(shell, "be", "_shell.sh")
+        print "I: Setting executable bit on %s" % shell
+        if subprocess.call(["chmod", "+x", shell]) != 0:
+            print "W: Could not set executable bit on subshell"
+        os.environ["BE_BITSET"] = "1"
