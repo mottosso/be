@@ -1,6 +1,9 @@
 {
     "schema_version": "0.0.1",
-    "repositories": [
-        "https://github.com/mottosso/be-helloworld.git"
+    "packages": [
+        {
+            "name": "helloworld",
+            "repository": "https://github.com/mottosso/be-helloworld.git",
+        }
     ]
 }
