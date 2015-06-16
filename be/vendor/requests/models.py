@@ -143,13 +143,12 @@ class RequestEncodingMixin(object):
             else:
                 fn = guess_filename(v) or k
                 fp = v
+            if isinstance(fp, str):
+                fp = StringIO(fp)
+            if isinstance(fp, bytes):
+                fp = BytesIO(fp)
 
-            if isinstance(fp, (str, bytes, bytearray)):
-                fdata = fp
-            else:
-                fdata = fp.read()
-
-            rf = RequestField(name=k, data=fdata,
+            rf = RequestField(name=k, data=fp.read(),
                               filename=fn, headers=fh)
             rf.make_multipart(content_type=ft)
             new_fields.append(rf)
@@ -689,8 +688,6 @@ class Response(object):
         """Iterates over the response data, one line at a time.  When
         stream=True is set on the request, this avoids reading the
         content at once into memory for large responses.
-
-        .. note:: This method is not reentrant safe.
         """
 
         pending = None

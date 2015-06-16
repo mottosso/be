@@ -157,8 +157,3 @@ class InsecureRequestWarning(SecurityWarning):
 class SystemTimeWarning(SecurityWarning):
     "Warned when system time is suspected to be wrong"
     pass
-
-
-class InsecurePlatformWarning(SecurityWarning):
-    "Warned when certain SSL configuration is not available on a platform."
-    pass

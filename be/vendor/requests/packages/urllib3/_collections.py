@@ -20,6 +20,8 @@ from .packages.six import iterkeys, itervalues, PY3
 __all__ = ['RecentlyUsedContainer', 'HTTPHeaderDict']
 
 
+MULTIPLE_HEADERS_ALLOWED = frozenset(['cookie', 'set-cookie', 'set-cookie2'])
+
 _Null = object()
 
 
@@ -141,10 +143,7 @@ class HTTPHeaderDict(dict):
     def __init__(self, headers=None, **kwargs):
         dict.__init__(self)
         if headers is not None:
-            if isinstance(headers, HTTPHeaderDict):
-                self._copy_from(headers)
-            else:
-                self.extend(headers)
+            self.extend(headers)
         if kwargs:
             self.extend(kwargs)
 
@@ -224,8 +223,11 @@ class HTTPHeaderDict(dict):
                 vals.append(val)
             else:
                 # vals should be a tuple then, i.e. only one item so far
-                # Need to convert the tuple to list for further extension
-                _dict_setitem(self, key_lower, [vals[0], vals[1], val])
+                if key_lower in MULTIPLE_HEADERS_ALLOWED:
+                    # Need to convert the tuple to list for further extension
+                    _dict_setitem(self, key_lower, [vals[0], vals[1], val])
+                else:
+                    _dict_setitem(self, key_lower, new_vals)
 
     def extend(*args, **kwargs):
         """Generic import function for any type of header-like object.
@@ -274,17 +276,14 @@ class HTTPHeaderDict(dict):
     def __repr__(self):
         return "%s(%s)" % (type(self).__name__, dict(self.itermerged()))
 
-    def _copy_from(self, other):
-        for key in other:
-            val = _dict_getitem(other, key)
+    def copy(self):
+        clone = type(self)()
+        for key in self:
+            val = _dict_getitem(self, key)
             if isinstance(val, list):
                 # Don't need to convert tuples
                 val = list(val)
-            _dict_setitem(self, key, val)
-
-    def copy(self):
-        clone = type(self)()
-        clone._copy_from(self)
+            _dict_setitem(clone, key, val)
         return clone
 
     def iteritems(self):

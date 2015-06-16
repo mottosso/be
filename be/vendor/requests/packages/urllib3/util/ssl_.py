@@ -1,7 +1,7 @@
 from binascii import hexlify, unhexlify
 from hashlib import md5, sha1, sha256
 
-from ..exceptions import SSLError, InsecurePlatformWarning
+from ..exceptions import SSLError
 
 
 SSLContext = None
@@ -10,7 +10,6 @@ create_default_context = None
 
 import errno
 import ssl
-import warnings
 
 try:  # Test for SSL features
     from ssl import wrap_socket, CERT_NONE, PROTOCOL_SSLv23
@@ -70,14 +69,6 @@ except ImportError:
             self.ciphers = cipher_suite
 
         def wrap_socket(self, socket, server_hostname=None):
-            warnings.warn(
-                'A true SSLContext object is not available. This prevents '
-                'urllib3 from configuring SSL appropriately and may cause '
-                'certain SSL connections to fail. For more information, see '
-                'https://urllib3.readthedocs.org/en/latest/security.html'
-                '#insecureplatformwarning.',
-                InsecurePlatformWarning
-            )
             kwargs = {
                 'keyfile': self.keyfile,
                 'certfile': self.certfile,
