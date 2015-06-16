@@ -58,7 +58,7 @@ def pull_preset(repository, preset_dir):
 
     api_endpoint = api_from_repo(repository)
 
-    kwargs = {}
+    kwargs = {"verify": False}
     if _headers["X-Github-Username"] is not None:
         kwargs["headers"] = _headers
 
@@ -74,7 +74,7 @@ def pull_preset(repository, preset_dir):
         if fname not in _files:
             continue
 
-        response = requests.get(download_url)
+        response = requests.get(download_url, verify=False)
         fpath = os.path.join(preset_dir, fname)
         with open(fpath, "w") as f:
             f.write(response.text)
@@ -95,7 +95,8 @@ def github_presets():
     addr = ("https://raw.githubusercontent.com"
             "/mottosso/be-presets/master/presets.json")
     return {package["name"]: package["repository"]
-            for package in requests.get(addr).json().get("presets")}
+            for package in requests.get(
+                addr, verify=False).json().get("presets")}
 
 
 def project_exists(project):
