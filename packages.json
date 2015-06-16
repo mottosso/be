@@ -2,6 +2,18 @@
     "schema_version": "0.0.1",
     "packages": [
         {
+            "name": "ad",
+            "repository": "https://github.com/mottosso/be-ad.git"
+        },
+        {
+            "name": "film",
+            "repository": "https://github.com/mottosso/be-film.git"
+        },
+        {
+            "name": "game",
+            "repository": "https://github.com/mottosso/be-game.git"
+        },
+        {
             "name": "helloworld",
             "repository": "https://github.com/mottosso/be-helloworld.git"
         }
