@@ -2,13 +2,22 @@ import os
 import re
 import sys
 import shutil
-import base64
+import platform
+from distutils.version import StrictVersion
 
 from vendor import yaml
 from vendor import requests
 
+_python_version = StrictVersion(platform.python_version())
+_minimum_version = StrictVersion("2.7.9")
+_sshenabled = _python_version < _minimum_version
+
 _cache = dict()
 _home = os.path.dirname(__file__)
+_headers = {
+  "X-Github-Username": os.environ.get("BE_GITHUB_USERNAME"),
+  "X-Github-API-Token": os.environ.get("BE_GITHUB_API_TOKEN")
+}
 _files = [
     "be.yaml",
     "inventory.yaml",
@@ -35,14 +44,31 @@ def api_from_repo(endpoint):
     return "https://api.github.com/repos" + api_endpoint
 
 
+def remove_preset(preset):
+    preset_dir = os.path.join(presets_dir(), preset)
+    shutil.rmtree(preset_dir)
+
+
 def pull_preset(repository, preset_dir):
     """Pull remote repository into `presets_dir`"""
+
+    if not _sshenabled:
+        sys.stderr.write("Remote access not supported on Python < 2.7.9")
+        sys.exit(1)
+
     api_endpoint = api_from_repo(repository)
-    response = requests.get(api_endpoint + "/contents")
+
+    kwargs = {}
+    if _headers["X-Github-Username"] is not None:
+        kwargs["headers"] = _headers
+
+    response = requests.get(api_endpoint + "/contents", **kwargs)
     if response.status_code == 403:
         raise IOError("Patience: You can't pull more than 40 presets per hour")
 
-    os.makedirs(preset_dir)
+    if not os.path.exists(preset_dir):
+        os.makedirs(preset_dir)
+
     for f in response.json():
         fname, download_url = f["name"], f["download_url"]
         if fname not in _files:
@@ -61,8 +87,13 @@ def local_presets():
 
 def github_presets():
     """Return remote presets hosted on GitHub"""
+
+    if not _sshenabled:
+        sys.stderr.write("Remote access not supported on Python < 2.7.9")
+        sys.exit(1)
+
     addr = ("https://raw.githubusercontent.com"
-            "/abstractfactory/be-presets/master/presets.json")
+            "/mottosso/be-presets/master/presets.json")
     return {package["name"]: package["repository"]
             for package in requests.get(addr).json().get("presets")}
 
@@ -77,16 +108,6 @@ def copy_preset(preset_dir, dest):
     for fname in os.listdir(preset_dir):
         src = os.path.join(preset_dir, fname)
         shutil.copy2(src, dest)
-
-
-def create_new(new_dir):
-    os.makedirs(new_dir)
-
-    with open(os.path.join(new_dir, "templates.yaml"), "w") as f:
-        yaml.dump(default_templates, f, default_flow_style=False)
-
-    with open(os.path.join(new_dir, "inventory.yaml"), "w") as f:
-        yaml.dump(defaults_inventory, f, default_flow_style=False)
 
 
 def load_templates(project):

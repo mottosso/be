@@ -1,4 +1,4 @@
-:: Dash Subshell, do not call directly.
+:: be subshell, do not call directly.
 @ECHO OFF
 REM Be Prompt 1.0
 

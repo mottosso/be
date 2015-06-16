@@ -169,12 +169,11 @@ def new(preset, name, silent):
         sys.stderr.write("\"%s\" already exists" % name)
         sys.exit(1)
 
-    presets = _extern.local_presets()
     presets_dir = _extern.presets_dir()
     preset_dir = os.path.join(presets_dir, preset)
 
     try:
-        if preset in presets:
+        if preset in _extern.local_presets():
             _extern.copy_preset(preset_dir, new_dir)
 
         else:
@@ -188,7 +187,7 @@ def new(preset, name, silent):
 
             time.sleep(1 if silent else 0)
             repository = presets[preset]
-            
+
             echo("Pulling %s.. " % repository, silent)
             try:
                 _extern.pull_preset(repository, preset_dir)
@@ -203,6 +202,55 @@ def new(preset, name, silent):
         sys.exit(1)
 
     echo("\"%s\" created" % name, silent, newline=False)
+
+
+@click.command()
+@click.argument("preset")
+@click.option("--clean", is_flag=True)
+def update(preset, clean):
+    """Update a local preset
+
+    This command will cause `be` to pull a preset already
+    available locally.
+
+    \b
+    Usage:
+        $ be update ad
+        Updating "ad"..
+
+    """
+
+    presets = _extern.github_presets()
+
+    if preset not in presets:
+        sys.stdout.write("\"%s\" not found" % preset)
+        sys.exit(1)
+
+    echo("Are you sure you want to update \"%s\", "
+         "any changes will be lost?: [y/N]: ", newline=False)
+    if raw_input().lower() in ("y", "yes"):
+        presets_dir = _extern.presets_dir()
+        preset_dir = os.path.join(presets_dir, preset)
+
+        repository = presets[preset]
+
+        if clean:
+            try:
+                _extern.remove_preset()
+            except:
+                echo("Error: Could not clean existing preset")
+                sys.exit(1)
+
+        echo("Updating %s.. " % repository)
+
+        try:
+            _extern.pull_preset(repository, preset_dir)
+        except IOError as e:
+            echo(e)
+            sys.exit(1)
+
+    else:
+        echo("Cancelled")
 
 
 @click.command()
@@ -231,6 +279,47 @@ def ls():
     for project in projects:
         click.echo("- %s" % project)
     sys.exit(0)
+
+
+@click.group()
+def preset():
+    """Create, manipulate and query presets"""
+
+
+@click.command()
+@click.option("--remote", is_flag=True, help="List remote presets")
+def preset_ls(remote):
+    """List presets"""
+    if remote:
+        presets = _extern.github_presets()
+    else:
+        presets = _extern.local_presets()
+
+    if not presets:
+        echo("No presets found", newline=False)
+        sys.exit(0)
+    for preset in presets:
+        echo("- %s" % preset)
+    sys.exit(0)
+
+
+@click.command()
+@click.argument("query")
+def preset_find(query):
+    """Find preset from hub
+
+    \b
+    $ be find mypreset
+    https://github.com/mottosso/be-mypreset.git
+
+    """
+
+    found = _extern.github_presets().get(query)
+    if found:
+        echo(found, newline=False)
+    else:
+        echo("Unable to locate preset \"%s\"" % query,
+             newline=False)
 
 
 @click.command()
@@ -276,6 +365,10 @@ main.add_command(ls)
 main.add_command(dump)
 main.add_command(what)
 main.add_command(what, name="?")
+main.add_command(update)
+main.add_command(preset)
+preset.add_command(preset_ls, name="ls")
+preset.add_command(preset_find, name="find")
 
 
 if __name__ == '__main__':
