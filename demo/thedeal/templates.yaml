@@ -1,4 +1,0 @@
-project: "{cwd}/{project}"
-character: "{@project}/dev/{type}/characters/{item}"
-prop: "{@project}/dev/{type}/props/{item}"
-shot: "{@project}/dev/{type}/{item}"

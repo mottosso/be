@@ -1,8 +1,0 @@
-environment:
-- PYTHONPATH: "{cwd}/pythonpath"
-
-script:
-- echo Entering project: Complex..
-
-aliases:
-- maya: C:\Program Files\Autodesk\Maya2014\bin\maya.exe
