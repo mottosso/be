@@ -190,7 +190,11 @@ def new(preset, name, silent):
             repository = presets[preset]
             
             echo("Pulling %s.. " % repository, silent)
-            _extern.pull_preset(repository, preset_dir)
+            try:
+                _extern.pull_preset(repository, preset_dir)
+            except IOError as e:
+                echo(e)
+                sys.exit(1)
 
             _extern.copy_preset(preset_dir, new_dir)
 

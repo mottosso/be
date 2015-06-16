@@ -10,10 +10,6 @@ from vendor import requests
 _cache = dict()
 _home = os.path.dirname(__file__)
 _files = ["inventory.yaml", "templates.yaml"]
-_headers = {
-  "X-Github-Username": "beisbot",
-  "X-Github-API-Token": "b5c49fdfec41ce042dc9da342bad55c60347bbf4"
-}
 
 
 def presets_dir():
@@ -34,12 +30,13 @@ def api_from_repo(endpoint):
 
 def pull_preset(repository, preset_dir):
     """Pull remote repository into `presets_dir`"""
-    os.makedirs(preset_dir)
-
     api_endpoint = api_from_repo(repository)
-    response = requests.get(api_endpoint + "/contents", headers=_headers).json()
+    response = requests.get(api_endpoint + "/contents")
+    if response.status_code == 403:
+        raise IOError("Patience: You can't pull more than 40 presets per hour")
 
-    for f in response:
+    os.makedirs(preset_dir)
+    for f in response.json():
         fname, download_url = f["name"], f["download_url"]
         if fname not in _files:
             continue
