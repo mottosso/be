@@ -2,15 +2,12 @@ import os
 import re
 import sys
 import shutil
-import platform
-from distutils.version import StrictVersion
 
 from vendor import yaml
 from vendor import requests
 
-_python_version = StrictVersion(platform.python_version())
-_minimum_version = StrictVersion("2.7.9")
-_sshenabled = _python_version < _minimum_version
+# Temporarily disable warning about SSL on Python < 2.7.9
+requests.packages.urllib3.disable_warnings()
 
 _cache = dict()
 _home = os.path.dirname(__file__)
@@ -51,11 +48,6 @@ def remove_preset(preset):
 
 def pull_preset(repository, preset_dir):
     """Pull remote repository into `presets_dir`"""
-
-    if not _sshenabled:
-        sys.stderr.write("Remote access not supported on Python < 2.7.9")
-        sys.exit(1)
-
     api_endpoint = api_from_repo(repository)
 
     kwargs = {"verify": False}
@@ -87,11 +79,6 @@ def local_presets():
 
 def github_presets():
     """Return remote presets hosted on GitHub"""
-
-    if not _sshenabled:
-        sys.stderr.write("Remote access not supported on Python < 2.7.9")
-        sys.exit(1)
-
     addr = ("https://raw.githubusercontent.com"
             "/mottosso/be-presets/master/presets.json")
     return {package["name"]: package["repository"]
