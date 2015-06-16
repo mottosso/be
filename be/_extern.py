@@ -86,7 +86,7 @@ def github_presets():
     """Return remote presets hosted on GitHub"""
     addr = ("https://raw.githubusercontent.com"
             "/mottosso/be-presets/master/presets.json")
-    return dict(package["name"], package["repository"]
+    return dict((package["name"], package["repository"])
                 for package in requests.get(
                     addr, verify=False).json().get("presets"))
 
