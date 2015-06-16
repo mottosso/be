@@ -143,9 +143,12 @@ def in_(ctx, context, yes):
 
 @click.command()
 @click.argument("preset")
-@click.option("--name", default="blue_unicorn")
-@click.option("--silent", is_flag=True)
-def new(preset, name, silent):
+@click.option("--name", help="Name of your new project")
+@click.option("--silent", is_flag=True,
+              help="Print only errors")
+@click.option("--update", "-U", is_flag=True,
+              help="Update preset to latest version before creating")
+def new(preset, name, silent, update):
     """Create new default preset
 
     \b
@@ -161,6 +164,9 @@ def new(preset, name, silent):
         lib.echo("Please exit current preset before starting a new")
         sys.exit(1)
 
+    if not name:
+        name = lib.random_name()
+
     new_dir = _format.project_dir(self.root(), name)
     if os.path.exists(new_dir):
         lib.echo("\"%s\" already exists" % name)
@@ -170,7 +176,7 @@ def new(preset, name, silent):
     preset_dir = os.path.join(presets_dir, preset)
 
     try:
-        if preset in _extern.local_presets():
+        if not update and preset in _extern.local_presets():
             _extern.copy_preset(preset_dir, new_dir)
 
         else:
