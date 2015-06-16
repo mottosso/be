@@ -18,3 +18,4 @@ deploy:
     tags: true
     all_branches: true
     python: 2.6
+
