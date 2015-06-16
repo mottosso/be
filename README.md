@@ -6,15 +6,4 @@ a minimal asset management system powered by the command-line.
 - [be by example](https://gist.github.com/mottosso/840b3edf532df286f2dd)
 - [tutorial](../../wiki/tutorial)
 - [reference](../../wiki/api)
-
-
-### Usage
-
-```bash
-$ be new ad --name nike
-"nike" created
-$ be in nike/shot1/animation
-No development directory found. Create? [Y/n]: y
-$ maya
-Launching Maya 2016..
-```
+- [presets](https://github.com/abstractfactory/be-presets)
