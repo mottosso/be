@@ -86,9 +86,9 @@ def github_presets():
     """Return remote presets hosted on GitHub"""
     addr = ("https://raw.githubusercontent.com"
             "/mottosso/be-presets/master/presets.json")
-    return {package["name"]: package["repository"]
-            for package in requests.get(
-                addr, verify=False).json().get("presets")}
+    return dict(package["name"], package["repository"]
+                for package in requests.get(
+                    addr, verify=False).json().get("presets"))
 
 
 def project_exists(project):
