@@ -9,7 +9,14 @@ from vendor import requests
 
 _cache = dict()
 _home = os.path.dirname(__file__)
-_files = ["inventory.yaml", "templates.yaml"]
+_files = [
+    "be.yaml",
+    "inventory.yaml",
+    "templates.yaml",
+    "environment.yaml",
+    "tasks.yaml",
+    "users.yaml",
+]
 
 
 def presets_dir():
