@@ -1,7 +1,15 @@
-# Example environment.yaml
+# be config
 
+# be stores information in environment variables.
+# You can remap to where these variables go here.
+# E.g. project goes to the variable MYPROJECT
 environment:
-- MYVAR: myvalue
+- project: MYPROJECT
+- item: MYITEM
+- type: MYTYPE
+- projectroot: MYPROJECTROOT
+- projectsroot: MYPROJECTSROOT
+- developmentdir: MYDEVELOPMENTDIR
 
 script:
 - echo "Starting up.."

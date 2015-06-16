@@ -11,6 +11,7 @@ Errors:
 
 import os
 import sys
+import time
 import subprocess
 
 import _format
@@ -20,6 +21,7 @@ import lib
 from vendor import click
 
 self = type("Scope", (object,), {})()
+self.home = os.path.dirname(__file__)
 self.root = lambda: os.getcwd().replace("\\", "/")
 self.isactive = lambda: "BE_ACTIVE" in os.environ
 
@@ -67,7 +69,7 @@ def main():
     """
 
 
-@click.command(name="in")
+@click.command()
 @click.argument("context")
 @click.option("-y", "--yes", is_flag=True,
               help="Automatically accept any questions")
@@ -136,31 +138,67 @@ def in_(context, yes):
              env=dict(os.environ, **env)))
 
 
+def echo(text, silent=False, newline=True):
+    if silent:
+        return
+    click.echo(text) if newline else sys.stdout.write(text)
+
+
 @click.command()
-@click.argument("name")
-def new(name):
-    """Create new default project
+@click.argument("preset")
+@click.option("--name", default="blue_unicorn")
+@click.option("--silent", is_flag=True)
+def new(preset, name, silent):
+    """Create new default preset
 
     \b
     Usage:
-        $ be new spiderman
+        $ be new ad
+        "blue_unicorn" created
+        $ be new film --name spiderman
         "spiderman" created
 
     """
 
     if self.isactive():
-        click.echo("Please exit current project before starting a new")
+        echo("Please exit current preset before starting a new")
         sys.exit(1)
 
     new_dir = _format.project_dir(self.root(), name)
-
-    if not os.path.exists(new_dir):
-        _extern.create_new(new_dir)
-    else:
+    if os.path.exists(new_dir):
         sys.stderr.write("\"%s\" already exists" % name)
         sys.exit(1)
 
-    sys.stdout.write("\"%s\" created" % name)
+    presets = _extern.local_presets()
+    presets_dir = _extern.presets_dir()
+    preset_dir = os.path.join(presets_dir, preset)
+
+    try:
+        if preset in presets:
+            _extern.copy_preset(preset_dir, new_dir)
+
+        else:
+            echo("Finding preset for \"%s\".. " % preset, silent)
+            time.sleep(1 if silent else 0)
+            presets = _extern.github_presets()
+
+            if preset not in presets:
+                sys.stdout.write("\"%s\" not found" % preset)
+                sys.exit(1)
+
+            time.sleep(1 if silent else 0)
+            repository = presets[preset]
+            
+            echo("Pulling %s.. " % repository, silent)
+            _extern.pull_preset(repository, preset_dir)
+
+            _extern.copy_preset(preset_dir, new_dir)
+
+    except IOError:
+        echo("ERROR: Could not write, do you have permission?")
+        sys.exit(1)
+
+    echo("\"%s\" created" % name, silent, newline=False)
 
 
 @click.command()
@@ -206,18 +244,34 @@ def dump():
     """
 
     if not self.isactive():
-        click.echo("No environment")
-    else:
-        for key, value in sorted(os.environ.iteritems()):
-            if not key.startswith("BE_"):
-                continue
-            click.echo("%s=%s" % (key[3:], os.environ.get(key)))
+        sys.stdout.write("No environment")
+        sys.exit(1)
+
+    for key, value in sorted(os.environ.iteritems()):
+        if not key.startswith("BE_"):
+            continue
+        click.echo("%s=%s" % (key[3:], os.environ.get(key)))
+    sys.exit(0)
 
 
-main.add_command(in_)
+@click.command()
+def what():
+    """Print current context"""
+    if not self.isactive():
+        sys.stdout.write("No environment")
+        sys.exit(1)
+
+    sys.stdout.write("{}/{}/{}".format(*(
+        os.environ.get(k, "")
+        for k in ("BE_PROJECT", "BE_ITEM", "BE_TYPE"))))
+
+
+main.add_command(in_, name="in")
 main.add_command(new)
 main.add_command(ls)
 main.add_command(dump)
+main.add_command(what)
+main.add_command(what, name="?")
 
 
 if __name__ == '__main__':

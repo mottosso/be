@@ -1,20 +1,78 @@
 import os
 import re
 import sys
+import shutil
+import base64
 
 from vendor import yaml
+from vendor import requests
 
 _cache = dict()
-
-default_templates = {
-    "asset": "{cwd}/{project}/assets/{item}/{type}",
-    "shot": "{cwd}/{project}/shots/{item}/{type}"
+_home = os.path.dirname(__file__)
+_files = ["inventory.yaml", "templates.yaml"]
+_headers = {
+  "X-Github-Username": "beisbot",
+  "X-Github-API-Token": "b5c49fdfec41ce042dc9da342bad55c60347bbf4"
 }
 
-defaults_inventory = {
-    "asset": ["peter", "maryjane"],
-    "shot": [1000, 2000]
-}
+
+def presets_dir():
+    """Return presets directory"""
+    default_root = os.path.join(os.path.expanduser("~"), ".be", "presets")
+    root = os.environ.get("BE_PRESETSDIR", default_root)
+    if not os.path.exists(root):
+        os.makedirs(root)
+    return root
+
+
+def api_from_repo(endpoint):
+    """Produce an api endpoint from a repo address"""
+    api_endpoint = endpoint.split("github.com", 1)[-1]
+    api_endpoint = api_endpoint.rsplit(".git", 1)[0]
+    return "https://api.github.com/repos" + api_endpoint
+
+
+def pull_preset(repository, preset_dir):
+    """Pull remote repository into `presets_dir`"""
+    os.makedirs(preset_dir)
+
+    api_endpoint = api_from_repo(repository)
+    response = requests.get(api_endpoint + "/contents", headers=_headers).json()
+
+    for f in response:
+        fname, download_url = f["name"], f["download_url"]
+        if fname not in _files:
+            continue
+
+        response = requests.get(download_url)
+        fpath = os.path.join(preset_dir, fname)
+        with open(fpath, "w") as f:
+            f.write(response.text)
+
+
+def local_presets():
+    """Return local presets"""
+    return os.listdir(presets_dir())
+
+
+def github_presets():
+    """Return remote presets hosted on GitHub"""
+    addr = ("https://raw.githubusercontent.com"
+            "/abstractfactory/be-presets/master/presets.json")
+    return {package["name"]: package["repository"]
+            for package in requests.get(addr).json().get("presets")}
+
+
+def project_exists(project):
+    return os.path.exists()
+
+
+def copy_preset(preset_dir, dest):
+    os.makedirs(dest)
+
+    for fname in os.listdir(preset_dir):
+        src = os.path.join(preset_dir, fname)
+        shutil.copy2(src, dest)
 
 
 def create_new(new_dir):

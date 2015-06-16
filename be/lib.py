@@ -1,4 +1,5 @@
 import os
+import shutil
 
 
 def isproject(path):
@@ -18,3 +19,4 @@ def isproject(path):
                              "inventory.yaml")):
         return False
     return True
+
