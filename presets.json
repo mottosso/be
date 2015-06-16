@@ -1,6 +1,6 @@
 {
     "schema_version": "0.0.1",
-    "packages": [
+    "presets": [
         {
             "name": "ad",
             "repository": "https://github.com/mottosso/be-ad.git"
