@@ -2,7 +2,7 @@
 
 a minimal asset management system powered by the command-line.
 
-
+- [what is it?](../../wiki)
 - [be by example](https://gist.github.com/mottosso/840b3edf532df286f2dd)
 - [tutorial](../../wiki/tutorial)
 - [reference](../../wiki/api)
