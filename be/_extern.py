@@ -190,7 +190,11 @@ def remove_preset(preset):
 
 def get(path, **kwargs):
     try:
-        return requests.get(path, verify=False, **kwargs)
+        response = requests.get(path, verify=False, **kwargs)
+        if response.status_code == 403:
+            raise IOError("Patience: You can't pull more than 40 "
+                          "presets per hour without an API token.")
+        return response
     except Exception as e:
         if self.verbose:
             lib.echo(e)
@@ -252,9 +256,6 @@ def pull_preset(repository, preset_dir):
         kwargs["headers"] = self.headers
 
     response = get(api_endpoint + "/contents", **kwargs)
-    if response.status_code == 403:
-        raise IOError("Patience: You can't pull more than 40 "
-                      "presets per hour without an API token.")
 
     if not repo_is_preset(repository):
         lib.echo("Error: %s does not appear to be a preset, "
