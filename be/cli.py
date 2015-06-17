@@ -27,7 +27,7 @@ self.isactive = lambda: "BE_ACTIVE" in os.environ
 
 @click.group()
 def main():
-    """be - Minimal Asset Management System
+    """be - Minimal Directory and Environment Management System
 
     be initialises a context-sensitive environment for
     your project. Use "new" to start a new project, followed
@@ -74,8 +74,11 @@ def main():
               help="Automatically accept any questions")
 @click.option("-a", "--as", "as_", default=getpass.getuser(),
               help="Enter project as a different user")
+@click.option("-e", "--enter", is_flag=True,
+              help="Change the current working "
+                   "directory to development directory")
 @click.pass_context
-def in_(ctx, context, yes, as_):
+def in_(ctx, context, yes, as_, enter):
     """Set the current context to `context`
 
     \b
@@ -83,6 +86,10 @@ def in_(ctx, context, yes, as_):
         $ be in project/item/type
 
     """
+
+    if self.isactive():
+        lib.echo("Error: Exit current project first")
+        sys.exit(1)
 
     try:
         project, item, type = str(context).split("/")
@@ -133,12 +140,25 @@ def in_(ctx, context, yes, as_):
         "BE_PROJECTSROOT": _extern.cwd(),
         "BE_ACTIVE": "True",
         "BE_USER": str(as_),
+        "BE_SCRIPT": "",
+        "BE_PYTHON": "",
+        "BE_ENTER": "True" if enter else "",
     }
 
     tempdir = None
     if "script" in settings:
-        script_path = _extern.write_script(settings["script"])
+        name = "script" + ".bat" if os.name == "nt" else ".sh"
+        script_path = _extern.write_script(settings["script"], name)
         env["BE_SCRIPT"] = script_path
+        tempdir = os.path.dirname(script_path)
+
+    if "python" in settings:
+        script = ";".join(settings["python"])
+        env["BE_PYTHON"] = script
+        try:
+            exec(script, {"__name__": __name__})
+        except Exception as e:
+            lib.echo("Error: %s" % e)
 
     for map_source, map_dest in settings.get("redirect", {}).items():
         env[map_dest] = env[map_source]
@@ -415,7 +435,6 @@ main.add_command(in_, name="in")
 main.add_command(new)
 main.add_command(ls)
 main.add_command(dump)
-main.add_command(what)
 main.add_command(what, name="?")
 main.add_command(update)
 main.add_command(preset)

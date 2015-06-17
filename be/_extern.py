@@ -105,7 +105,7 @@ def load(project, fname, optional=False, root=None):
     return _cache[fname]
 
 
-def write_script(script):
+def write_script(script, name):
     """Write script to a temporary directory
 
     Arguments:
@@ -117,8 +117,7 @@ def write_script(script):
     """
 
     tempdir = tempfile.mkdtemp()
-    path = os.path.join(tempdir, "script" + ".bat"
-                        if os.name == "nt" else ".sh")
+    path = os.path.join(tempdir, name)
 
     with open(path, "w") as f:
         f.write("\n".join(script))
