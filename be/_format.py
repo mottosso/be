@@ -21,7 +21,7 @@ def development_directory(templates, inventory, project, item, type):
     keys = {
         "cwd": os.getcwd(),
         "project": project,
-        "item": item,
+        "item": item.replace("\\", "/"),
         "user": getpass.getuser(),
         "type": type
     }
