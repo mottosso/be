@@ -4,10 +4,10 @@
 [![Code Health](https://landscape.io/github/mottosso/be/master/landscape.svg?style=flat)](https://landscape.io/github/mottosso/be/master)
 [![PyPI image](https://badge.fury.io/py/be.svg)](http://badge.fury.io/py/be)
 
-a minimal asset management system powered by the command-line.
+be is a directory and environment management system for creative projects.
 
 - [what is it?](../../wiki)
-- [be by example](https://gist.github.com/mottosso/840b3edf532df286f2dd)
 - [tutorial](../../wiki/tutorial)
-- [reference](../../wiki/api)
-- [presets](https://github.com/abstractfactory/be-presets)
+- [be by example](https://gist.github.com/mottosso/840b3edf532df286f2dd)
+- [reference](../../wiki/reference)
+- [presets](../../wiki/presets)
