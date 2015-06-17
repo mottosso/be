@@ -187,23 +187,29 @@ def remove_preset(preset):
         lib.echo("\"%s\" did not exist" % preset)
 
 
-def repo_is_preset(response):
+def repo_is_preset(repository):
     """Evaluate whether repository is a be package
 
     Arguments:
         response (dict): GitHub response with contents of repository
 
     """
+    package_template = "https://raw.githubusercontent.com/{repository}/master/package.json"
+    package_path = package_template.format(repository=repository)
 
-    configuration_files = list()
+    response = requests.get(package_path)
     if response.status_code == 404:
         return False
 
-    for f in response.json():
-        configuration_files.append(f["name"])
+    try:
+        data = response.json()
+    except:
+        return False
 
-    return all(fname in configuration_files
-               for fname in ("templates.yaml", "inventory.yaml"))
+    if not data.get("type") == "bepreset":
+        return False
+
+    return True
 
 
 def fetch_release(repository):
@@ -239,8 +245,8 @@ def pull_preset(repository, preset_dir):
         raise IOError("Patience: You can't pull more than 40 "
                       "presets per hour without an API token.")
 
-    if not repo_is_preset(response):
-        lib.echo("Error: %s is not a be preset" % repository)
+    if not repo_is_preset(repository):
+        lib.echo("Error: %s does not appear to be a preset" % repository)
         sys.exit(1)
 
     if not os.path.exists(preset_dir):
