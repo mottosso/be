@@ -12,6 +12,7 @@ Errors:
 import os
 import sys
 import time
+import getpass
 import subprocess
 
 import _format
@@ -71,8 +72,10 @@ def main():
 @click.argument("context")
 @click.option("-y", "--yes", is_flag=True,
               help="Automatically accept any questions")
+@click.option("-a", "--as", "as_", default=getpass.getuser(),
+              help="Enter project as a different user")
 @click.pass_context
-def in_(ctx, context, yes):
+def in_(ctx, context, yes, as_):
     """Set the current context to `context`
 
     \b
@@ -99,7 +102,7 @@ def in_(ctx, context, yes):
     settings = _extern.load_settings(project)
 
     development_dir = _format.development_directory(
-        templates, inventory, project, item, type)
+        templates, inventory, project, item, type, as_)
     if not os.path.exists(development_dir):
         create = False
         if yes:
@@ -129,6 +132,7 @@ def in_(ctx, context, yes):
             _extern.cwd(), project).replace("\\", "/"),
         "BE_PROJECTSROOT": _extern.cwd(),
         "BE_ACTIVE": "True",
+        "BE_USER": str(as_),
     }
 
     tempdir = None

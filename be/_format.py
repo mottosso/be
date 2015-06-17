@@ -1,11 +1,11 @@
 import os
 import sys
-import getpass
 
 import lib
 
 
-def development_directory(templates, inventory, project, item, type):
+def development_directory(templates, inventory, project,
+                          item, type, user):
     """Return absolute path to development directory
 
     Arguments:
@@ -22,7 +22,7 @@ def development_directory(templates, inventory, project, item, type):
         "cwd": os.getcwd(),
         "project": project,
         "item": item.replace("\\", "/"),
-        "user": getpass.getuser(),
+        "user": user,
         "type": type
     }
 
