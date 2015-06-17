@@ -1,18 +1,18 @@
 """External access module
 
 Attributes:
-    _cache: Store configuration files after having been loaded
-    _home: Absolute path to the `be` Python package directory
-    _headers: Optional GitHub authentication headers
-    _files: Files supported in remote presets
+    self.cache: Store configuration files after having been loaded
+    self.home: Absolute path to the `be` Python package directory
+    self.headers: Optional GitHub authentication headers
+    self.files: Files supported in remote presets
 
 """
 
 import os
 import re
 import sys
+import stat
 import shutil
-import tempfile
 
 from vendor import yaml
 from vendor import requests
@@ -27,13 +27,15 @@ BE_GITHUB_API_TOKEN = "BE_GITHUB_API_TOKEN"
 # Temporarily disable warning about SSL on Python < 2.7.9
 requests.packages.urllib3.disable_warnings()
 
-_cache = dict()
-_home = os.path.dirname(__file__)
-_headers = {
+self = sys.modules.get(__name__)
+self.home = os.path.dirname(__file__)
+self.cache = dict()
+self.suffix = ".bat" if os.name == "nt" else ".sh"
+self.headers = {
   "X-Github-Username": os.environ.get(BE_GITHUB_USERNAME),
   "X-Github-API-Token": os.environ.get(BE_GITHUB_API_TOKEN)
 }
-_files = [
+self.files = [
     "be.yaml",
     "inventory.yaml",
     "templates.yaml",
@@ -88,24 +90,24 @@ def load_be(project):
 
 
 def load(project, fname, optional=False, root=None):
-    if fname not in _cache:
+    if fname not in self.cache:
         path = os.path.join(root or cwd(), project, "%s.yaml" % fname)
         try:
             with open(path) as f:
-                _cache[fname] = yaml.load(f) or dict()
+                self.cache[fname] = yaml.load(f) or dict()
         except IOError:
             if optional:
-                _cache[fname] = {}
+                self.cache[fname] = {}
             else:
                 sys.stderr.write(
                     "PROJECT ERROR: %s.yaml not defined "
                     "for project \"%s\"" % (fname, project))
                 sys.exit(1)
 
-    return _cache[fname]
+    return self.cache[fname]
 
 
-def write_script(script, name):
+def write_script(script, tempdir):
     """Write script to a temporary directory
 
     Arguments:
@@ -116,13 +118,42 @@ def write_script(script, name):
 
     """
 
-    tempdir = tempfile.mkdtemp()
+    name = "script" + self.suffix
     path = os.path.join(tempdir, name)
 
     with open(path, "w") as f:
         f.write("\n".join(script))
 
     return path
+
+
+def write_aliases(aliases, tempdir):
+    """Write aliases to temporary directory
+
+    Arguments:
+        alias (dict): {name: value} dict of aliases
+
+    """
+
+    tempdir = os.path.join(tempdir, "aliases")
+    os.makedirs(tempdir)
+
+    for alias, cmd in aliases.iteritems():
+        path = os.path.join(tempdir, alias)
+
+        if os.name == "nt":
+            path += ".bat"
+
+        with open(path, "w") as f:
+            f.write(cmd)
+
+        if os.name != "nt":
+            # Make executable on unix systems
+            st = os.stat(path)
+            os.chmod(path, st.st_mode | stat.S_IXUSR
+                     | stat.S_IXGRP | stat.S_IXOTH)
+
+    return tempdir
 
 
 def projects():
@@ -200,8 +231,8 @@ def pull_preset(repository, preset_dir):
     api_endpoint = "https://api.github.com/repos/" + repository
 
     kwargs = {"verify": False}
-    if _headers["X-Github-Username"] is not None:
-        kwargs["headers"] = _headers
+    if self.headers["X-Github-Username"] is not None:
+        kwargs["headers"] = self.headers
 
     response = requests.get(api_endpoint + "/contents", **kwargs)
     if response.status_code == 403:
@@ -217,7 +248,7 @@ def pull_preset(repository, preset_dir):
 
     for f in response.json():
         fname, download_url = f["name"], f["download_url"]
-        if fname not in _files:
+        if fname not in self.files:
             continue
 
         response = requests.get(download_url, verify=False)

@@ -13,6 +13,7 @@ import os
 import sys
 import time
 import getpass
+import tempfile
 import subprocess
 
 import _format
@@ -41,19 +42,15 @@ def main():
 
     \b
     Usage:
-        # List available projects
-        $ be ls
-        - hulk
-        # Start new project
-        $ be new spiderman
+        $ be new ad --name spiderman
         "spiderman" created.
-        # Enter project
-        $ be in spiderman/peter/model
-        # Print environment
+        $ be ls
+        - spiderman
+        $ be in spiderman/shot1/animation
         $ be dump
-        PROJECT=spiderman
-        ITEM=peter
-        TYPE=model
+        BE_PROJECT=spiderman
+        BE_ITEM=peter
+        BE_TASK=model
 
     \b
     Environment:
@@ -130,7 +127,12 @@ def in_(ctx, context, yes, as_, enter):
     else:
         shell = os.path.join(dirname, "_shell.sh")
 
-    env = {
+    tempdir = (tempfile.mkdtemp()
+               if "BE_TEMPDIR" not in os.environ
+               else os.environ["BE_TEMPDIR"])
+
+    env = os.environ.copy()
+    env.update({
         "BE_PROJECT": project,
         "BE_ITEM": item,
         "BE_TYPE": type,
@@ -143,14 +145,12 @@ def in_(ctx, context, yes, as_, enter):
         "BE_SCRIPT": "",
         "BE_PYTHON": "",
         "BE_ENTER": "True" if enter else "",
-    }
+        "BE_TEMPDIR": tempdir
+    })
 
-    tempdir = None
+    # Parse be.yaml
     if "script" in settings:
-        name = "script" + ".bat" if os.name == "nt" else ".sh"
-        script_path = _extern.write_script(settings["script"], name)
-        env["BE_SCRIPT"] = script_path
-        tempdir = os.path.dirname(script_path)
+        env["BE_SCRIPT"] = _extern.write_script(settings["script"], tempdir)
 
     if "python" in settings:
         script = ";".join(settings["python"])
@@ -159,6 +159,11 @@ def in_(ctx, context, yes, as_, enter):
             exec(script, {"__name__": __name__})
         except Exception as e:
             lib.echo("Error: %s" % e)
+
+    if "alias" in settings:
+        alias_dir = _extern.write_aliases(settings["alias"], tempdir)
+        env["PATH"] = alias_dir + os.pathsep + env.get("PATH", "")
+        env["BE_ALIASDIR"] = alias_dir
 
     for map_source, map_dest in settings.get("redirect", {}).items():
         env[map_dest] = env[map_source]
@@ -169,12 +174,10 @@ def in_(ctx, context, yes, as_, enter):
         return
 
     try:
-        sys.exit(subprocess.call(shell, shell=True,
-                 env=dict(os.environ, **env)))
+        sys.exit(subprocess.call(shell, shell=True, env=env))
     finally:
-        if tempdir:
-            import shutil
-            shutil.rmtree(tempdir)
+        import shutil
+        shutil.rmtree(tempdir)
 
 
 @click.command()
@@ -275,6 +278,10 @@ def update(preset, clean):
 
     """
 
+    if self.isactive():
+        lib.echo("Error: Exit current project first")
+        sys.exit(1)
+
     presets = _extern.github_presets()
 
     if preset not in presets:
@@ -320,6 +327,10 @@ def ls():
 
     """
 
+    if self.isactive():
+        lib.echo("Error: Exit current project first")
+        sys.exit(1)
+
     projects = list()
     for project in os.listdir(_extern.cwd()):
         abspath = os.path.join(_extern.cwd(), project)
@@ -355,6 +366,10 @@ def preset_ls(remote):
 
     """
 
+    if self.isactive():
+        lib.echo("Error: Exit current project first")
+        sys.exit(1)
+
     if remote:
         presets = _extern.github_presets()
     else:
@@ -379,6 +394,10 @@ def preset_find(query):
 
     """
 
+    if self.isactive():
+        lib.echo("Error: Exit current project first")
+        sys.exit(1)
+
     found = _extern.github_presets().get(query)
     if found:
         lib.echo(found)
@@ -401,7 +420,7 @@ def dump():
     """
 
     if not self.isactive():
-        lib.echo("No environment")
+        lib.echo("Error: Enter a project first")
         sys.exit(1)
 
     for key in sorted(os.environ):
@@ -422,8 +441,9 @@ def dump():
 @click.command()
 def what():
     """Print current context"""
+
     if not self.isactive():
-        sys.stdout.write("No environment")
+        lib.echo("Error: Enter a project first")
         sys.exit(1)
 
     sys.stdout.write("{}/{}/{}".format(*(
