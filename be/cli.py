@@ -131,8 +131,7 @@ def in_(ctx, context, yes, as_, enter):
                if "BE_TEMPDIR" not in os.environ
                else os.environ["BE_TEMPDIR"])
 
-    env = os.environ.copy()
-    env.update({
+    env = dict(os.environ, **{
         "BE_PROJECT": project,
         "BE_ITEM": item,
         "BE_TYPE": type,
