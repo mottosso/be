@@ -96,6 +96,7 @@ def in_(ctx, context, yes):
 
     templates = _extern.load_templates(project)
     inventory = _extern.load_inventory(project)
+    settings = _extern.load_settings(project)
 
     development_dir = _format.development_directory(
         templates, inventory, project, item, type)
@@ -129,6 +130,9 @@ def in_(ctx, context, yes):
         "BE_PROJECTSROOT": _extern.cwd(),
         "BE_ACTIVE": "true",
     }
+
+    for map_source, map_dest in settings.get("environment_map", {}).items():
+        env[map_dest] = env[map_source]
 
     if "BE_TESTING" in os.environ:
         os.chdir(development_dir)
@@ -187,16 +191,25 @@ def new(preset, name, silent, update):
         else:
             lib.echo("Finding preset for \"%s\".. " % preset, silent)
             time.sleep(1 if silent else 0)
-            presets = _extern.github_presets()
 
-            if preset not in presets:
-                sys.stdout.write("\"%s\" not found" % preset)
-                sys.exit(1)
+            if "/" not in preset:
+                # Preset is relative, look it up from the Hub
+                presets = _extern.github_presets()
 
-            time.sleep(1 if silent else 0)
-            repository = presets[preset]
+                if preset not in presets:
+                    sys.stdout.write("\"%s\" not found" % preset)
+                    sys.exit(1)
 
+                time.sleep(1 if silent else 0)
+                repository = presets[preset]
+
+            else:
+                # Absolute paths are pulled directly
+                repository = preset
+
+            repository = _extern.fetch_release(repository)
             lib.echo("Pulling %s.. " % repository, silent)
+
             try:
                 _extern.pull_preset(repository, preset_dir)
             except IOError as e:
@@ -357,10 +370,18 @@ def dump():
         sys.stdout.write("No environment")
         sys.exit(1)
 
-    for key, value in sorted(os.environ.iteritems()):
+    for key in sorted(os.environ):
         if not key.startswith("BE_"):
             continue
-        lib.echo("%s=%s" % (key[3:], os.environ.get(key)))
+        lib.echo("%s=%s" % (key, os.environ.get(key)))
+
+    project = os.environ["BE_PROJECT"]
+    root = os.environ["BE_PROJECTSROOT"]
+    settings = _extern.load(project, "be", optional=True, root=root)
+    environ = settings.get("environment_map", {}).items()
+    for map_source, map_dest in sorted(environ):
+        lib.echo("%s=%s" % (map_dest, os.environ.get(map_dest)))
+
     sys.exit(0)
 
 

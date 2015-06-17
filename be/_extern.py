@@ -52,6 +52,14 @@ def cwd():
     return os.getcwd().replace("\\", "/")
 
 
+def load_settings(project):
+    return load(project, "be", optional=True)
+
+
+def load_environment(project):
+    return load(project, "environment", optional=True)
+
+
 def load_templates(project):
     """Return templates given name of project
 
@@ -78,16 +86,20 @@ def load_be(project):
     return load(project, "be")
 
 
-def load(project, fname):
+def load(project, fname, optional=False, root=None):
     if fname not in _cache:
-        path = os.path.join(cwd(), project, "%s.yaml" % fname)
+        path = os.path.join(root or cwd(), project, "%s.yaml" % fname)
         try:
             with open(path) as f:
                 _cache[fname] = yaml.load(f) or dict()
         except IOError:
-            sys.stderr.write("PROJECT ERROR: %s.yaml not "
-                             "defined for project \"%s\"" % (fname, project))
-            sys.exit(1)
+            if optional:
+                _cache[fname] = {}
+            else:
+                sys.stderr.write(
+                    "PROJECT ERROR: %s.yaml not defined "
+                    "for project \"%s\"" % (fname, project))
+                sys.exit(1)
 
     return _cache[fname]
 
@@ -99,23 +111,12 @@ def projects():
 
 def presets_dir():
     """Return presets directory"""
-    default_presets_dir = os.path.join(os.path.expanduser("~"), ".be", "presets")
+    default_presets_dir = os.path.join(
+        os.path.expanduser("~"), ".be", "presets")
     presets_dir = os.environ.get(BE_PRESETSDIR, default_presets_dir)
     if not os.path.exists(presets_dir):
         os.makedirs(presets_dir)
     return presets_dir
-
-
-def api_from_repo(endpoint):
-    """Produce an api endpoint from a repo address
-
-    Arguments:
-        endpoint (str): username/repo combination,
-            e.g. mottosso/be-ad
-
-    """
-
-    return "https://api.github.com/repos/" + endpoint
 
 
 def remove_preset(preset):
@@ -134,9 +135,48 @@ def remove_preset(preset):
         lib.echo("\"%s\" did not exist" % preset)
 
 
+def repo_is_preset(response):
+    """Evaluate whether repository is a be package
+
+    Arguments:
+        response (dict): GitHub response with contents of repository
+
+    """
+
+    configuration_files = list()
+    if response.status_code == 404:
+        return False
+
+    for f in response.json():
+        configuration_files.append(f["name"])
+
+    return all(fname in configuration_files
+               for fname in ("templates.yaml", "inventory.yaml"))
+
+
+def fetch_release(repository):
+    """Return latest release from `repository`
+
+    Arguments:
+        repository (str): username/repo combination
+
+    """
+
+    return repository
+
+
 def pull_preset(repository, preset_dir):
-    """Pull remote repository into `presets_dir`"""
-    api_endpoint = api_from_repo(repository)
+    """Pull remote repository into `presets_dir`
+
+    Arguments:
+        repository (str): username/repo combination,
+            e.g. mottosso/be-ad
+        preset_dir (str): Absolute path in which to store preset
+
+    """
+
+    repository, tag = repository.split(":", 1) + [None]
+    api_endpoint = "https://api.github.com/repos/" + repository
 
     kwargs = {"verify": False}
     if _headers["X-Github-Username"] is not None:
@@ -144,7 +184,12 @@ def pull_preset(repository, preset_dir):
 
     response = requests.get(api_endpoint + "/contents", **kwargs)
     if response.status_code == 403:
-        raise IOError("Patience: You can't pull more than 40 presets per hour")
+        raise IOError("Patience: You can't pull more than 40 "
+                      "presets per hour without an API token.")
+
+    if not repo_is_preset(response):
+        lib.echo("Error: %s is not a be preset" % repository)
+        sys.exit(1)
 
     if not os.path.exists(preset_dir):
         os.makedirs(preset_dir)
@@ -172,10 +217,6 @@ def github_presets():
     return dict((package["name"], package["repository"])
                 for package in requests.get(
                     addr, verify=False).json().get("presets"))
-
-
-def project_exists(project):
-    return os.path.exists()
 
 
 def copy_preset(preset_dir, dest):
@@ -230,8 +271,3 @@ def resolve_references(templates):
         templates[key] = re.sub("{@\w+}", repl, pattern)
 
     return templates
-
-
-def test_template():
-    os.chdir("../demo")
-    print load_templates("thedeal")
