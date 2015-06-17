@@ -4,6 +4,8 @@
 [![Code Health](https://landscape.io/github/mottosso/be/master/landscape.svg?style=flat)](https://landscape.io/github/mottosso/be/master)
 [![PyPI image](https://badge.fury.io/py/be.svg)](http://badge.fury.io/py/be)
 
+![](https://cloud.githubusercontent.com/assets/2152766/8212811/cc0d8e9a-1515-11e5-8c82-f6c073c783f8.gif)
+
 be is a directory and environment management system for creative projects.
 
 - [what is it?](../../wiki)
