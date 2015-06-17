@@ -1,5 +1,2 @@
-# Set the default behavior, in case people don't have core.autocrlf set.
-* text=auto
-
 # Ensure bash scripts have Unix line-endings
 *.sh text eol=lf
