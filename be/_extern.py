@@ -43,6 +43,7 @@ self.files = [
     "tasks.yaml",
     "users.yaml",
 ]
+self.verbose = False
 
 
 def home():
@@ -187,6 +188,15 @@ def remove_preset(preset):
         lib.echo("\"%s\" did not exist" % preset)
 
 
+def get(path, **kwargs):
+    try:
+        return requests.get(path, verify=False, **kwargs)
+    except Exception as e:
+        if self.verbose:
+            lib.echo(e)
+        raise e
+
+
 def repo_is_preset(repository):
     """Evaluate whether repository is a be package
 
@@ -197,7 +207,7 @@ def repo_is_preset(repository):
     package_template = "https://raw.githubusercontent.com/{repository}/master/package.json"
     package_path = package_template.format(repository=repository)
 
-    response = requests.get(package_path, verify=False)
+    response = get(package_path)
     if response.status_code == 404:
         return False
 
@@ -236,11 +246,11 @@ def pull_preset(repository, preset_dir):
     repository, tag = repository.split(":", 1) + [None]
     api_endpoint = "https://api.github.com/repos/" + repository
 
-    kwargs = {"verify": False}
+    kwargs = {}
     if self.headers["X-Github-Username"] is not None:
         kwargs["headers"] = self.headers
 
-    response = requests.get(api_endpoint + "/contents", **kwargs)
+    response = get(api_endpoint + "/contents", **kwargs)
     if response.status_code == 403:
         raise IOError("Patience: You can't pull more than 40 "
                       "presets per hour without an API token.")
@@ -257,7 +267,7 @@ def pull_preset(repository, preset_dir):
         if fname not in self.files:
             continue
 
-        response = requests.get(download_url, verify=False)
+        response = get(download_url)
         fpath = os.path.join(preset_dir, fname)
         with open(fpath, "w") as f:
             f.write(response.text)
@@ -273,8 +283,7 @@ def github_presets():
     addr = ("https://raw.githubusercontent.com"
             "/mottosso/be-presets/master/presets.json")
     return dict((package["name"], package["repository"])
-                for package in requests.get(
-                    addr, verify=False).json().get("presets"))
+                for package in get(addr).json().get("presets"))
 
 
 def copy_preset(preset_dir, dest):

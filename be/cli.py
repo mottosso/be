@@ -25,10 +25,12 @@ from vendor import click
 
 self = type("Scope", (object,), {})()
 self.isactive = lambda: "BE_ACTIVE" in os.environ
+self.verbose = False
 
 
 @click.group()
-def main():
+@click.option("-v", "--verbose", is_flag=True)
+def main(verbose):
     """be {0} - Minimal Directory and Environment Management System
 
     be initialises a context-sensitive environment for
@@ -64,6 +66,9 @@ def main():
         BE_ACTIVE (bool): In an active environment
 
     """
+
+    self.verbose = verbose
+    _extern.verbose = verbose
 
 main.help = main.help.format(version)
 
@@ -147,7 +152,7 @@ def in_(ctx, context, yes, as_, enter):
         "BE_SCRIPT": "",
         "BE_PYTHON": "",
         "BE_ENTER": "1" if enter else "",
-        "BE_TEMPDIR": tempdir
+        "BE_TEMPDIR": tempdir,
     })
 
     # Parse be.yaml
