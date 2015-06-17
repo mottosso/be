@@ -5,13 +5,13 @@ import lib
 
 
 def development_directory(templates, inventory, project,
-                          item, type, user):
+                          item, task, user):
     """Return absolute path to development directory
 
     Arguments:
         project (str): Name of project
         item (str): Name of item within project
-        type (str): Family of item
+        task (str): Family of item
 
     """
 
@@ -23,7 +23,8 @@ def development_directory(templates, inventory, project,
         "project": project,
         "item": item.replace("\\", "/"),
         "user": user,
-        "type": type
+        "task": task,
+        "type": task,  # deprecated
     }
 
     try:
