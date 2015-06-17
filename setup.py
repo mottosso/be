@@ -1,5 +1,3 @@
-import platform
-from distutils.version import StrictVersion
 from setuptools import setup, find_packages
 
 with open("README.md") as f:
@@ -24,9 +22,6 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Utilities"
 ]
-
-if StrictVersion(platform.python_version()) < StrictVersion("2.7.9"):
-    print "WARNING: Python < 2.7.9 detected, disabling remote preset access"
 
 setup(
     name="be",
