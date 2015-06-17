@@ -204,6 +204,7 @@ def repo_is_preset(repository):
         response (dict): GitHub response with contents of repository
 
     """
+
     package_template = "https://raw.githubusercontent.com/{repository}/master/package.json"
     package_path = package_template.format(repository=repository)
 
@@ -256,7 +257,8 @@ def pull_preset(repository, preset_dir):
                       "presets per hour without an API token.")
 
     if not repo_is_preset(repository):
-        lib.echo("Error: %s does not appear to be a preset" % repository)
+        lib.echo("Error: %s does not appear to be a preset, "
+                  "try --verbose for more information." % repository)
         sys.exit(1)
 
     if not os.path.exists(preset_dir):
