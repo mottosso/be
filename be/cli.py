@@ -131,6 +131,15 @@ def in_(ctx, context, yes):
         "BE_ACTIVE": "True",
     }
 
+    tempdir = None
+    if "script" in settings:
+        import tempfile
+        tempdir = tempfile.mkdtemp()
+        script = os.path.join(tempdir, "script.bat")
+        env["BE_SCRIPT"] = script
+        with open(script, "w") as f:
+            f.write("\n".join(settings["script"]))
+
     for map_source, map_dest in settings.get("redirect", {}).items():
         env[map_dest] = env[map_source]
 
@@ -139,8 +148,13 @@ def in_(ctx, context, yes):
         os.environ.update(env)
         return
 
-    sys.exit(subprocess.call(shell, shell=True,
-             env=dict(os.environ, **env)))
+    try:
+        sys.exit(subprocess.call(shell, shell=True,
+                 env=dict(os.environ, **env)))
+    finally:
+        if tempdir:
+            import shutil
+            shutil.rmtree(tempdir)
 
 
 @click.command()
