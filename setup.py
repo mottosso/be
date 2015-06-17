@@ -33,6 +33,7 @@ setup(
     classifiers=classifiers,
     package_data={
         "be": ["*.sh", "*.bat"],
+        "be.vendor.requests": ["cacert.pem"]
     },
     entry_points={
         "console_scripts": ["be = be.cli:main"]
