@@ -197,7 +197,7 @@ def repo_is_preset(repository):
     package_template = "https://raw.githubusercontent.com/{repository}/master/package.json"
     package_path = package_template.format(repository=repository)
 
-    response = requests.get(package_path)
+    response = requests.get(package_path, verify=False)
     if response.status_code == 404:
         return False
 
