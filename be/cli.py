@@ -381,7 +381,7 @@ def dump():
     """
 
     if not self.isactive():
-        sys.stdout.write("No environment")
+        lib.echo("No environment")
         sys.exit(1)
 
     for key in sorted(os.environ):
