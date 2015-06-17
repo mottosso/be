@@ -133,12 +133,8 @@ def in_(ctx, context, yes):
 
     tempdir = None
     if "script" in settings:
-        import tempfile
-        tempdir = tempfile.mkdtemp()
-        script = os.path.join(tempdir, "script.bat")
-        env["BE_SCRIPT"] = script
-        with open(script, "w") as f:
-            f.write("\n".join(settings["script"]))
+        script_path = _extern.write_script(settings["script"])
+        env["BE_SCRIPT"] = script_path
 
     for map_source, map_dest in settings.get("redirect", {}).items():
         env[map_dest] = env[map_source]

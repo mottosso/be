@@ -12,6 +12,7 @@ import os
 import re
 import sys
 import shutil
+import tempfile
 
 from vendor import yaml
 from vendor import requests
@@ -102,6 +103,27 @@ def load(project, fname, optional=False, root=None):
                 sys.exit(1)
 
     return _cache[fname]
+
+
+def write_script(script):
+    """Write script to a temporary directory
+
+    Arguments:
+        script (list): Commands which to put into a file
+
+    Returns:
+        Absolute path to script
+
+    """
+
+    tempdir = tempfile.mkdtemp()
+    path = os.path.join(tempdir, "script" + ".bat"
+                        if os.name == "nt" else ".sh")
+
+    with open(path, "w") as f:
+        f.write("\n".join(script))
+
+    return path
 
 
 def projects():
