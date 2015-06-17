@@ -146,7 +146,7 @@ def in_(ctx, context, yes, as_, enter):
         "BE_USER": str(as_),
         "BE_SCRIPT": "",
         "BE_PYTHON": "",
-        "BE_ENTER": "True" if enter else "False",
+        "BE_ENTER": "1" if enter else "",
         "BE_TEMPDIR": tempdir
     })
 
