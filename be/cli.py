@@ -128,10 +128,10 @@ def in_(ctx, context, yes):
         "BE_PROJECTROOT": os.path.join(
             _extern.cwd(), project).replace("\\", "/"),
         "BE_PROJECTSROOT": _extern.cwd(),
-        "BE_ACTIVE": "true",
+        "BE_ACTIVE": "True",
     }
 
-    for map_source, map_dest in settings.get("environment_map", {}).items():
+    for map_source, map_dest in settings.get("redirect", {}).items():
         env[map_dest] = env[map_source]
 
     if "BE_TESTING" in os.environ:
@@ -378,7 +378,7 @@ def dump():
     project = os.environ["BE_PROJECT"]
     root = os.environ["BE_PROJECTSROOT"]
     settings = _extern.load(project, "be", optional=True, root=root)
-    environ = settings.get("environment_map", {}).items()
+    environ = settings.get("redirect", {}).items()
     for map_source, map_dest in sorted(environ):
         lib.echo("%s=%s" % (map_dest, os.environ.get(map_dest)))
 
