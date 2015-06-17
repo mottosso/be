@@ -1,10 +1,6 @@
-from setuptools import setup, find_packages
-
-with open("README.md") as f:
-    readme = f.read()
-
 import os
 import imp
+from setuptools import setup, find_packages
 
 version_file = os.path.abspath("be/version.py")
 version_mod = imp.load_source("version", version_file)
@@ -27,7 +23,7 @@ setup(
     name="be",
     version=version,
     description="Minimal asset management system",
-    long_description=readme,
+    long_description="Visit https://github.com/mottosso/be",
     author="Abstract Factory",
     author_email="marcus@abstractfactory.com",
     url="https://github.com/mottosso/be",
