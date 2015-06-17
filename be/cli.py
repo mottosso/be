@@ -20,6 +20,7 @@ import _format
 import _extern
 import lib
 
+from version import version
 from vendor import click
 
 self = type("Scope", (object,), {})()
@@ -28,7 +29,7 @@ self.isactive = lambda: "BE_ACTIVE" in os.environ
 
 @click.group()
 def main():
-    """be - Minimal Directory and Environment Management System
+    """be {0} - Minimal Directory and Environment Management System
 
     be initialises a context-sensitive environment for
     your project. Use "new" to start a new project, followed
@@ -38,7 +39,7 @@ def main():
     e.g. "peter".
 
     See help for each subcommand for more information and
-    http://github.com/abstractfactory/be/wiki for documentation.
+    http://github.com/mottosso/be/wiki for documentation.
 
     \b
     Usage:
@@ -63,6 +64,8 @@ def main():
         BE_ACTIVE (bool): In an active environment
 
     """
+
+main.help = main.help.format(version)
 
 
 @click.command()
@@ -143,7 +146,7 @@ def in_(ctx, context, yes, as_, enter):
         "BE_USER": str(as_),
         "BE_SCRIPT": "",
         "BE_PYTHON": "",
-        "BE_ENTER": "True" if enter else "",
+        "BE_ENTER": "True" if enter else "False",
         "BE_TEMPDIR": tempdir
     })
 
@@ -160,9 +163,13 @@ def in_(ctx, context, yes, as_, enter):
             lib.echo("Error: %s" % e)
 
     # Create aliases
+    cd_alias = ("cd %BE_DEVELOPMENTDIR%"
+                if os.name == "nt" else "cd $BE_DEVELOPMENTDIR")
+
     aliases = settings.get("alias", {})
-    aliases["home"] = "cd %s" % development_dir
+    aliases["home"] = cd_alias
     aliases_dir = _extern.write_aliases(aliases, tempdir)
+
     env["PATH"] = aliases_dir + os.pathsep + env.get("PATH", "")
     env["BE_ALIASDIR"] = aliases_dir
 
