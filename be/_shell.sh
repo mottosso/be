@@ -1,7 +1,7 @@
 # be subshell, do not call directly.
-if ! ["$BE_ENTER" = ""];then cd $BE_DEVELOPMENTDIR;fi
+if ! [ -z ${BE_ENTER+x} ]; then cd $BE_DEVELOPMENTDIR; fi
 
 # Run script
-if ! ["$BE_SCRIPT" = ""];then . $BE_SCRIPT;fi
+if ! [ -z ${BE_SCRIPT+x} ]; then . $BE_SCRIPT; fi
 
 bash
