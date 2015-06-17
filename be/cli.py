@@ -159,10 +159,12 @@ def in_(ctx, context, yes, as_, enter):
         except Exception as e:
             lib.echo("Error: %s" % e)
 
-    if "alias" in settings:
-        alias_dir = _extern.write_aliases(settings["alias"], tempdir)
-        env["PATH"] = alias_dir + os.pathsep + env.get("PATH", "")
-        env["BE_ALIASDIR"] = alias_dir
+    # Create aliases
+    aliases = settings.get("alias", {})
+    aliases["home"] = "cd %s" % development_dir
+    aliases_dir = _extern.write_aliases(aliases, tempdir)
+    env["PATH"] = aliases_dir + os.pathsep + env.get("PATH", "")
+    env["BE_ALIASDIR"] = aliases_dir
 
     for map_source, map_dest in settings.get("redirect", {}).items():
         env[map_dest] = env[map_source]
