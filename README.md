@@ -9,7 +9,9 @@
 be is a directory and environment management system for creative projects.
 
 - [what is it?](../../wiki)
+- [quickstart](../../wiki/quickstart)
 - [tutorial](../../wiki/tutorial)
+- [demos](../../wiki/demos)
 - [be by example](https://gist.github.com/mottosso/840b3edf532df286f2dd)
 - [install](../../wiki/install)
 - [presets](../../wiki/presets)
