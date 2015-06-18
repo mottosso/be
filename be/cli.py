@@ -281,7 +281,7 @@ def new(preset, name, silent, update):
             lib.echo("ERROR: %s" % exc)
         else:
             lib.echo("ERROR: Could not write, do you have permission?")
-        sys.exit(lib.USER_ERROR)
+        sys.exit(lib.PROGRAM_ERROR)
 
     lib.echo("\"%s\" created" % name, silent)
 

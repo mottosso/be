@@ -5,6 +5,7 @@ import random
 import _data
 
 NORMAL = 0
+PROGRAM_ERROR = 1
 USER_ERROR = 2
 PROJECT_ERROR = 3
 TEMPLATE_ERROR = 4
