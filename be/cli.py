@@ -226,8 +226,8 @@ def new(preset, name, silent, update):
             name = lib.random_name()
             count += 1
 
-    new_dir = _format.project_dir(_extern.cwd(), name)
-    if os.path.exists(new_dir):
+    project_dir = _format.project_dir(_extern.cwd(), name)
+    if os.path.exists(project_dir):
         lib.echo("\"%s\" already exists" % name)
         sys.exit(1)
 
@@ -236,7 +236,7 @@ def new(preset, name, silent, update):
 
     try:
         if not update and preset in _extern.local_presets():
-            _extern.copy_preset(preset_dir, new_dir)
+            _extern.copy_preset(preset_dir, project_dir)
 
         else:
             lib.echo("Finding preset for \"%s\".. " % preset, silent)
@@ -260,13 +260,18 @@ def new(preset, name, silent, update):
             repository = _extern.fetch_release(repository)
             lib.echo("Pulling %s.. " % repository, silent)
 
+            # Remove existing preset
+            if preset in _extern.local_presets():
+                _extern.remove_preset(preset)
+
             try:
                 _extern.pull_preset(repository, preset_dir)
             except IOError as e:
+                lib.echo("Error: Sorry, something went wrong. Use --verbose for more")
                 lib.echo(e)
                 sys.exit(1)
 
-            _extern.copy_preset(preset_dir, new_dir)
+            _extern.copy_preset(preset_dir, project_dir)
 
     except IOError:
         lib.echo("ERROR: Could not write, do you have permission?")
@@ -311,7 +316,7 @@ def update(preset, clean):
 
         if clean:
             try:
-                _extern.remove_preset()
+                _extern.remove_preset(preset)
             except:
                 lib.echo("Error: Could not clean existing preset")
                 sys.exit(1)

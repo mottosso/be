@@ -12,7 +12,10 @@ import os
 import re
 import sys
 import stat
+import json
 import shutil
+import tarfile
+import tempfile
 
 from vendor import yaml
 from vendor import requests
@@ -31,10 +34,10 @@ self = sys.modules.get(__name__)
 self.home = os.path.dirname(__file__)
 self.cache = dict()
 self.suffix = ".bat" if os.name == "nt" else ".sh"
-self.headers = {
-  "X-Github-Username": os.environ.get(BE_GITHUB_USERNAME),
-  "X-Github-API-Token": os.environ.get(BE_GITHUB_API_TOKEN)
-}
+self.files_exclude = [
+    "/LICENSE",
+    "/package.json"
+]
 self.files = [
     "be.yaml",
     "inventory.yaml",
@@ -189,6 +192,13 @@ def remove_preset(preset):
 
 
 def get(path, **kwargs):
+    """requests.get wrapper"""
+    token = os.environ.get(BE_GITHUB_API_TOKEN)
+    if token is not None:
+        kwargs["headers"] = {
+            "Authorization": "token %s" % token
+        }
+
     try:
         response = requests.get(path, verify=False, **kwargs)
         if response.status_code == 403:
@@ -201,16 +211,16 @@ def get(path, **kwargs):
         raise e
 
 
-def repo_is_preset(repository):
-    """Evaluate whether repository is a be package
+def repo_is_preset(repo):
+    """Evaluate whether repo is a be package
 
     Arguments:
-        response (dict): GitHub response with contents of repository
+        repo (dict): GitHub response with contents of repo
 
     """
 
-    package_template = "https://raw.githubusercontent.com/{repository}/master/package.json"
-    package_path = package_template.format(repository=repository)
+    package_template = "https://raw.githubusercontent.com/{repo}/master/package.json"
+    package_path = package_template.format(repo=repo)
 
     response = get(package_path)
     if response.status_code == 404:
@@ -227,53 +237,85 @@ def repo_is_preset(repository):
     return True
 
 
-def fetch_release(repository):
-    """Return latest release from `repository`
+def fetch_release(repo):
+    """Return latest release from `repo`
 
     Arguments:
-        repository (str): username/repo combination
+        repo (str): username/repo combination
 
     """
 
-    return repository
+    return repo
 
 
-def pull_preset(repository, preset_dir):
-    """Pull remote repository into `presets_dir`
+def download_file(url):
+    local_filename = url.split('/')[-1]
+    r = requests.get(url, stream=True)
+    with open(local_filename, 'wb') as f:
+        for chunk in r.iter_content(chunk_size=1024): 
+            if chunk: # filter out keep-alive new chunks
+                f.write(chunk)
+                f.flush()
+    return local_filename
 
-    Arguments:
-        repository (str): username/repo combination,
-            e.g. mottosso/be-ad
-        preset_dir (str): Absolute path in which to store preset
 
-    """
+def pull_preset(repo, preset_dir):
+    repo, tag = repo.split(":", 1) + [None]
 
-    repository, tag = repository.split(":", 1) + [None]
-    api_endpoint = "https://api.github.com/repos/" + repository
+    if not repo.count("/") == 1 or len(repo.split("/")) != 2:
+        raise ValueError("Repository syntax is: "
+                         "username/repo (not %s)" % repo)
 
-    kwargs = {}
-    if self.headers["X-Github-Username"] is not None:
-        kwargs["headers"] = self.headers
-
-    response = get(api_endpoint + "/contents", **kwargs)
-
-    if not repo_is_preset(repository):
+    if not repo_is_preset(repo):
         lib.echo("Error: %s does not appear to be a preset, "
-                  "try --verbose for more information." % repository)
+                  "try --verbose for more information." % repo)
         sys.exit(1)
 
-    if not os.path.exists(preset_dir):
-        os.makedirs(preset_dir)
+    url = "https://api.github.com/repos/%s/tarball" % repo
+    r = get(url, stream=True)
 
-    for f in response.json():
-        fname, download_url = f["name"], f["download_url"]
-        if fname not in self.files:
-            continue
+    tempdir = tempfile.mkdtemp()
+    temppath = "/".join([tempdir, repo.rsplit("/", 1)[-1] + ".tar.gz"])
+    with open(temppath, "wb") as f:
+        for chunk in r.iter_content(chunk_size=1024):
+            if not chunk:
+                continue
+            f.write(chunk)
+            f.flush()
 
-        response = get(download_url)
-        fpath = os.path.join(preset_dir, fname)
-        with open(fpath, "w") as f:
-            f.write(response.text)
+    try:
+        return unzip_preset(temppath, preset_dir)
+    finally:
+        shutil.rmtree(tempdir)
+
+
+def unzip_preset(src, dest):
+    tempdir = os.path.dirname(src)
+    
+    if self.verbose:
+        lib.echo("Unpacking %s -> %s" % (src, tempdir))
+    
+    try:
+        tar = tarfile.open(src)
+        tar.extractall(tempdir)
+    finally:
+        tar.close()
+
+    # GitHub tars always come with a single directory
+    try:
+        repo = [os.path.join(tempdir, d) for d in os.listdir(tempdir)
+                if os.path.isdir(os.path.join(tempdir, d))][0]
+    except:
+        raise ValueError("%s is not a preset (this is a bug)" % src)
+
+    if self.verbose:
+        lib.echo("Moving %s -> %s" % (repo, dest))
+    
+    presets_dir()  # Create if it doesn't exist
+
+    shutil.move(repo, dest)
+
+    return dest
 
 
 def local_presets():
@@ -289,12 +331,33 @@ def github_presets():
                 for package in get(addr).json().get("presets"))
 
 
-def copy_preset(preset_dir, dest):
-    os.makedirs(dest)
+def copy_preset(preset_dir, project_dir):
+    """Copy contents of preset into new project
+
+    If package.json contains the key "contents", limit
+    the files copied to those present in this list.
+
+    Arguments:
+        preset_dir (str): Absolute path to preset
+        project_dir (str): Absolute path to new project
+
+    """
+
+    os.makedirs(project_dir)
+
+    package_file = os.path.join(preset_dir, "package.json")
+    with open(package_file) as f:
+        package = json.load(f)
 
     for fname in os.listdir(preset_dir):
         src = os.path.join(preset_dir, fname)
-        shutil.copy2(src, dest)
+
+        files = package.get("contents") or self.files
+
+        if fname not in files:
+            continue
+
+        shutil.copy2(src, project_dir)
 
 
 def resolve_references(templates):
@@ -341,3 +404,11 @@ def resolve_references(templates):
         templates[key] = re.sub("{@\w+}", repl, pattern)
 
     return templates
+
+
+if __name__ == '__main__':
+    import tempfile
+    temp = tempfile.mkdtemp()
+    pull_preset("mottosso/be-superman-project", temp)
+    print "Contents: "
+    print os.listdir(temp)
