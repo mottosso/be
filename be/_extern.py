@@ -357,7 +357,11 @@ def copy_preset(preset_dir, project_dir):
         if fname not in files:
             continue
 
-        shutil.copy2(src, project_dir)
+        if os.path.isfile(src):
+            shutil.copy2(src, project_dir)
+        else:
+            dest = os.path.join(project_dir, fname)
+            shutil.copytree(src, dest)
 
 
 def resolve_references(templates):
