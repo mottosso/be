@@ -405,11 +405,3 @@ def resolve_references(templates):
         templates[key] = re.sub("{@\w+}", repl, pattern)
 
     return templates
-
-
-if __name__ == '__main__':
-    import tempfile
-    temp = tempfile.mkdtemp()
-    pull_preset("mottosso/be-superman-project", temp)
-    print "Contents: "
-    print os.listdir(temp)

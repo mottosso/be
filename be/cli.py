@@ -1,7 +1,7 @@
 """be - Minimal Asset Management System
 
 Usage:
-    $ be project/item/type
+    $ be project/item/task
 
 Return codes:
     0: No error
@@ -91,7 +91,7 @@ def in_(ctx, context, yes, as_, enter):
 
     \b
     Usage:
-        $ be in project/item/type
+        $ be in project/item/task
 
     """
 
@@ -100,9 +100,9 @@ def in_(ctx, context, yes, as_, enter):
         sys.exit(lib.USER_ERROR)
 
     try:
-        project, item, type = str(context).split("/")
+        project, item, task = str(context).split("/")
     except:
-        sys.stderr.write("Invalid syntax, the format is project/item/type")
+        sys.stderr.write("Invalid syntax, the format is project/item/task")
         sys.exit(lib.USER_ERROR)
 
     project_dir = _format.project_dir(_extern.cwd(), project)
@@ -117,7 +117,7 @@ def in_(ctx, context, yes, as_, enter):
     settings = _extern.load_settings(project)
 
     development_dir = _format.development_directory(
-        templates, inventory, project, item, type, as_)
+        templates, inventory, project, item, task, as_)
     if not os.path.exists(development_dir):
         create = False
         if yes:
@@ -145,7 +145,7 @@ def in_(ctx, context, yes, as_, enter):
     env = dict(os.environ, **{
         "BE_PROJECT": project,
         "BE_ITEM": item,
-        "BE_TYPE": type,
+        "BE_TYPE": task,
         "BE_DEVELOPMENTDIR": development_dir,
         "BE_PROJECTROOT": os.path.join(
             _extern.cwd(), project).replace("\\", "/"),
@@ -470,7 +470,7 @@ def what():
         lib.echo("ERROR: Enter a project first")
         sys.exit(lib.USER_ERROR)
 
-    sys.stdout.write("{}/{}/{}".format(*(
+    lib.echo("{}/{}/{}".format(*(
         os.environ.get(k, "")
         for k in ("BE_PROJECT", "BE_ITEM", "BE_TYPE"))))
 

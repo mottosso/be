@@ -110,10 +110,6 @@ def template_from_item(inventory, item):
         sys.exit(1)
 
 
-def test_cdd():
-    os.chdir("../demo")
-    development_directory("thedeal", "ben", "rig")
-
 
 if __name__ == "__main__":
     inventory = {
