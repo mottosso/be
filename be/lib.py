@@ -4,6 +4,11 @@ import random
 
 import _data
 
+NORMAL = 0
+USER_ERROR = 2
+PROJECT_ERROR = 3
+TEMPLATE_ERROR = 4
+
 
 def random_name():
     """Return a random name

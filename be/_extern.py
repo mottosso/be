@@ -2,10 +2,9 @@
 
 Attributes:
     self.cache: Store configuration files after having been loaded
-    self.home: Absolute path to the `be` Python package directory
     self.headers: Optional GitHub authentication headers
     self.files: Files supported in remote presets
-
+    self.verbose: Whether or not to output debugging messages
 """
 
 import os
@@ -31,13 +30,8 @@ BE_GITHUB_API_TOKEN = "BE_GITHUB_API_TOKEN"
 requests.packages.urllib3.disable_warnings()
 
 self = sys.modules.get(__name__)
-self.home = os.path.dirname(__file__)
 self.cache = dict()
 self.suffix = ".bat" if os.name == "nt" else ".sh"
-self.files_exclude = [
-    "/LICENSE",
-    "/package.json"
-]
 self.files = [
     "be.yaml",
     "inventory.yaml",
@@ -104,9 +98,9 @@ def load(project, fname, optional=False, root=None):
                 self.cache[fname] = {}
             else:
                 sys.stderr.write(
-                    "PROJECT ERROR: %s.yaml not defined "
+                    "ERROR: %s.yaml not defined "
                     "for project \"%s\"" % (fname, project))
-                sys.exit(1)
+                sys.exit(lib.USER_ERROR)
 
     return self.cache[fname]
 
@@ -202,13 +196,16 @@ def get(path, **kwargs):
     try:
         response = requests.get(path, verify=False, **kwargs)
         if response.status_code == 403:
-            raise IOError("Patience: You can't pull more than 40 "
-                          "presets per hour without an API token.")
+            lib.echo("Patience: You can't pull more than 40 "
+                     "presets per hour without an API token.")
+            sys.exit(lib.USER_ERROR)
         return response
     except Exception as e:
         if self.verbose:
-            lib.echo(e)
-        raise e
+            lib.echo("ERROR: %s" % e)
+        else:
+            lib.echo("ERROR: Something went wrong. "
+                     "See --verbose for more information")
 
 
 def repo_is_preset(repo):
@@ -267,9 +264,9 @@ def pull_preset(repo, preset_dir):
                          "username/repo (not %s)" % repo)
 
     if not repo_is_preset(repo):
-        lib.echo("Error: %s does not appear to be a preset, "
+        lib.echo("ERROR: %s does not appear to be a preset, "
                   "try --verbose for more information." % repo)
-        sys.exit(1)
+        sys.exit(lib.USER_ERROR)
 
     url = "https://api.github.com/repos/%s/tarball" % repo
     r = get(url, stream=True)
@@ -401,7 +398,7 @@ def resolve_references(templates):
         key = pattern[match.start():match.end()].strip("@{}")
         if key not in templates:
             sys.stderr.write("Unresolvable reference: \"%s\"" % key)
-            sys.exit(1)
+            sys.exit(lib.USER_ERROR)
         return templates[key]
 
     for key, pattern in templates.copy().iteritems():

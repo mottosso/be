@@ -3,9 +3,12 @@
 Usage:
     $ be project/item/type
 
-Errors:
-    PROJECT ERROR: Project has been misconfigured
-    TEMPLATE ERROR: A template has been misconfigured
+Return codes:
+    0: No error
+    1: Program fault  # returned from exceptions
+    2: User error
+    3: Project has been misconfigured
+    4: A template has been misconfigured
 
 """
 
@@ -93,21 +96,21 @@ def in_(ctx, context, yes, as_, enter):
     """
 
     if self.isactive():
-        lib.echo("Error: Exit current project first")
-        sys.exit(1)
+        lib.echo("ERROR: Exit current project first")
+        sys.exit(lib.USER_ERROR)
 
     try:
         project, item, type = str(context).split("/")
     except:
         sys.stderr.write("Invalid syntax, the format is project/item/type")
-        sys.exit(1)
+        sys.exit(lib.USER_ERROR)
 
     project_dir = _format.project_dir(_extern.cwd(), project)
     if not os.path.exists(project_dir):
         lib.echo("Project \"%s\" not found. " % project)
         lib.echo("\nAvailable:")
         ctx.invoke(ls)
-        sys.exit(1)
+        sys.exit(lib.USER_ERROR)
 
     templates = _extern.load_templates(project)
     inventory = _extern.load_inventory(project)
@@ -127,7 +130,7 @@ def in_(ctx, context, yes, as_, enter):
             os.makedirs(development_dir)
         else:
             sys.stdout.write("Cancelled")
-            sys.exit(0)
+            sys.exit(lib.NORMAL)
 
     dirname = os.path.dirname(__file__)
     if os.name == "nt":
@@ -165,7 +168,7 @@ def in_(ctx, context, yes, as_, enter):
         try:
             exec(script, {"__name__": __name__})
         except Exception as e:
-            lib.echo("Error: %s" % e)
+            lib.echo("ERROR: %s" % e)
 
     # Create aliases
     cd_alias = ("cd %BE_DEVELOPMENTDIR%"
@@ -214,22 +217,22 @@ def new(preset, name, silent, update):
 
     if self.isactive():
         lib.echo("Please exit current preset before starting a new")
-        sys.exit(1)
+        sys.exit(lib.USER_ERROR)
 
     if not name:
         count = 0
         name = lib.random_name()
         while name in _extern.projects():
             if count > 10:
-                lib.echo("Error: Couldn't come up with a unique name :(")
-                sys.exit(1)
+                lib.echo("ERROR: Couldn't come up with a unique name :(")
+                sys.exit(lib.USER_ERROR)
             name = lib.random_name()
             count += 1
 
     project_dir = _format.project_dir(_extern.cwd(), name)
     if os.path.exists(project_dir):
         lib.echo("\"%s\" already exists" % name)
-        sys.exit(1)
+        sys.exit(lib.USER_ERROR)
 
     presets_dir = _extern.presets_dir()
     preset_dir = os.path.join(presets_dir, preset)
@@ -248,7 +251,7 @@ def new(preset, name, silent, update):
 
                 if preset not in presets:
                     sys.stdout.write("\"%s\" not found" % preset)
-                    sys.exit(1)
+                    sys.exit(lib.USER_ERROR)
 
                 time.sleep(1 if silent else 0)
                 repository = presets[preset]
@@ -267,15 +270,18 @@ def new(preset, name, silent, update):
             try:
                 _extern.pull_preset(repository, preset_dir)
             except IOError as e:
-                lib.echo("Error: Sorry, something went wrong. Use --verbose for more")
+                lib.echo("ERROR: Sorry, something went wrong. Use --verbose for more")
                 lib.echo(e)
-                sys.exit(1)
+                sys.exit(lib.USER_ERROR)
 
             _extern.copy_preset(preset_dir, project_dir)
 
-    except IOError:
-        lib.echo("ERROR: Could not write, do you have permission?")
-        sys.exit(1)
+    except IOError as exc:
+        if self.verbose:
+            lib.echo("ERROR: %s" % exc)
+        else:
+            lib.echo("ERROR: Could not write, do you have permission?")
+        sys.exit(lib.USER_ERROR)
 
     lib.echo("\"%s\" created" % name, silent)
 
@@ -297,14 +303,14 @@ def update(preset, clean):
     """
 
     if self.isactive():
-        lib.echo("Error: Exit current project first")
-        sys.exit(1)
+        lib.echo("ERROR: Exit current project first")
+        sys.exit(lib.USER_ERROR)
 
     presets = _extern.github_presets()
 
     if preset not in presets:
         sys.stdout.write("\"%s\" not found" % preset)
-        sys.exit(1)
+        sys.exit(lib.USER_ERROR)
 
     lib.echo("Are you sure you want to update \"%s\", "
              "any changes will be lost?: [y/N]: ", newline=False)
@@ -318,8 +324,8 @@ def update(preset, clean):
             try:
                 _extern.remove_preset(preset)
             except:
-                lib.echo("Error: Could not clean existing preset")
-                sys.exit(1)
+                lib.echo("ERROR: Could not clean existing preset")
+                sys.exit(lib.USER_ERROR)
 
         lib.echo("Updating %s.. " % repository)
 
@@ -327,7 +333,7 @@ def update(preset, clean):
             _extern.pull_preset(repository, preset_dir)
         except IOError as e:
             lib.echo(e)
-            sys.exit(1)
+            sys.exit(lib.USER_ERROR)
 
     else:
         lib.echo("Cancelled")
@@ -346,8 +352,8 @@ def ls():
     """
 
     if self.isactive():
-        lib.echo("Error: Exit current project first")
-        sys.exit(1)
+        lib.echo("ERROR: Exit current project first")
+        sys.exit(lib.USER_ERROR)
 
     projects = list()
     for project in os.listdir(_extern.cwd()):
@@ -358,11 +364,11 @@ def ls():
 
     if not projects:
         lib.echo("Empty")
-        sys.exit(0)
+        sys.exit(lib.NORMAL)
 
     for project in sorted(projects):
         lib.echo("- %s" % project)
-    sys.exit(0)
+    sys.exit(lib.NORMAL)
 
 
 @click.group()
@@ -385,8 +391,8 @@ def preset_ls(remote):
     """
 
     if self.isactive():
-        lib.echo("Error: Exit current project first")
-        sys.exit(1)
+        lib.echo("ERROR: Exit current project first")
+        sys.exit(lib.USER_ERROR)
 
     if remote:
         presets = _extern.github_presets()
@@ -395,10 +401,10 @@ def preset_ls(remote):
 
     if not presets:
         lib.echo("No presets found")
-        sys.exit(0)
+        sys.exit(lib.NORMAL)
     for preset in sorted(presets):
         lib.echo("- %s" % preset)
-    sys.exit(0)
+    sys.exit(lib.NORMAL)
 
 
 @click.command()
@@ -413,8 +419,8 @@ def preset_find(query):
     """
 
     if self.isactive():
-        lib.echo("Error: Exit current project first")
-        sys.exit(1)
+        lib.echo("ERROR: Exit current project first")
+        sys.exit(lib.USER_ERROR)
 
     found = _extern.github_presets().get(query)
     if found:
@@ -438,8 +444,8 @@ def dump():
     """
 
     if not self.isactive():
-        lib.echo("Error: Enter a project first")
-        sys.exit(1)
+        lib.echo("ERROR: Enter a project first")
+        sys.exit(lib.USER_ERROR)
 
     for key in sorted(os.environ):
         if not key.startswith("BE_"):
@@ -453,7 +459,7 @@ def dump():
     for map_source, map_dest in sorted(environ):
         lib.echo("%s=%s" % (map_dest, os.environ.get(map_dest)))
 
-    sys.exit(0)
+    sys.exit(lib.NORMAL)
 
 
 @click.command()
@@ -461,8 +467,8 @@ def what():
     """Print current context"""
 
     if not self.isactive():
-        lib.echo("Error: Enter a project first")
-        sys.exit(1)
+        lib.echo("ERROR: Enter a project first")
+        sys.exit(lib.USER_ERROR)
 
     sys.stdout.write("{}/{}/{}".format(*(
         os.environ.get(k, "")
