@@ -2,7 +2,7 @@
 @ECHO OFF
 REM Be Prompt 1.0
 
-TITLE ...%BE_DEVELOPMENTDIR:~-40% - %BE_PROJECT% / %BE_ITEM% / %BE_TYPE%
+TITLE %BE_TOPIC%
 
 :: Enter development directory
 if not "%BE_ENTER%" == "" CD %BE_DEVELOPMENTDIR%

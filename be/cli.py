@@ -30,6 +30,9 @@ self = type("Scope", (object,), {})()
 self.isactive = lambda: "BE_ACTIVE" in os.environ
 self.verbose = False
 
+FIXED = 1 << 0
+POSITIONAL = 1 << 1
+
 
 @click.group()
 @click.option("-v", "--verbose", is_flag=True)
@@ -77,7 +80,7 @@ main.help = main.help.format(version)
 
 
 @click.command()
-@click.argument("context")
+@click.argument("topics", nargs=-1, required=True)
 @click.option("-y", "--yes", is_flag=True,
               help="Automatically accept any questions")
 @click.option("-a", "--as", "as_", default=getpass.getuser(),
@@ -86,24 +89,27 @@ main.help = main.help.format(version)
               help="Change the current working "
                    "directory to development directory")
 @click.pass_context
-def in_(ctx, context, yes, as_, enter):
-    """Set the current context to `context`
+def in_(ctx, topics, yes, as_, enter):
+    """Set the current topics to `topics`
 
     \b
     Usage:
-        $ be in project/item/task
+        $ be in project topics
 
     """
+
+    topics = map(str, topics)  # They enter as unicode
 
     if self.isactive():
         lib.echo("ERROR: Exit current project first")
         sys.exit(lib.USER_ERROR)
 
-    try:
-        project, item, task = str(context).split("/")
-    except:
-        sys.stderr.write("Invalid syntax, the format is project/item/task")
-        sys.exit(lib.USER_ERROR)
+    if len(topics[0].split("/")) == 3:
+        syntax = FIXED
+        project = topics[0].split("/")[0]
+    else:
+        syntax = POSITIONAL
+        project = topics[0]
 
     project_dir = _format.project_dir(_extern.cwd(), project)
     if not os.path.exists(project_dir):
@@ -112,25 +118,42 @@ def in_(ctx, context, yes, as_, enter):
         ctx.invoke(ls)
         sys.exit(lib.USER_ERROR)
 
+    # Boot up
+    settings = _extern.load_settings(project)
     templates = _extern.load_templates(project)
     inventory = _extern.load_inventory(project)
-    settings = _extern.load_settings(project)
+    environment = _extern.load_environment(project)
+    environment.update({
+        "BE_PROJECT": project,
+        "BE_ALIASDIR": "",
+        "BE_CWD": _extern.cwd(),
+        "BE_CD": "",
+        "BE_ROOT": "",
+        "BE_TOPIC": " ".join(topics),  # e.g. shot1 anim
+        "BE_DEVELOPMENTDIR": "",
+        "BE_PROJECTROOT": os.path.join(
+            _extern.cwd(), project).replace("\\", "/"),
+        "BE_PROJECTSROOT": _extern.cwd(),
+        "BE_ACTIVE": "True",
+        "BE_USER": str(as_),
+        "BE_SCRIPT": "",
+        "BE_PYTHON": "",
+        "BE_ENTER": "1" if enter else "",
+        "BE_TEMPDIR": "",
+        "BE_PRESETSDIR": "",
+        "BE_GITHUB_API_TOKEN": ""
+    })
+    environment.update(os.environ)
 
-    development_dir = _format.development_directory(
-        templates, inventory, project, item, task, as_)
-    if not os.path.exists(development_dir):
-        create = False
-        if yes:
-            create = True
-        else:
-            sys.stdout.write("No development directory found. Create? [Y/n]: ")
-            if raw_input().lower() in ("", "y", "yes"):
-                create = True
-        if create:
-            os.makedirs(development_dir)
-        else:
-            sys.stdout.write("Cancelled")
-            sys.exit(lib.NORMAL)
+    # Determine syntax
+    if syntax & POSITIONAL:
+        development_dir = _format.new_development_directory(
+            settings, templates, inventory, environment, topics, as_)
+    else:  # FIXED syntax
+        development_dir = _format.development_directory(
+            templates, inventory, topics, as_)
+
+    environment["BE_DEVELOPMENTDIR"] = development_dir
 
     dirname = os.path.dirname(__file__)
     if os.name == "nt":
@@ -141,34 +164,36 @@ def in_(ctx, context, yes, as_, enter):
     tempdir = (tempfile.mkdtemp()
                if "BE_TEMPDIR" not in os.environ
                else os.environ["BE_TEMPDIR"])
+    environment["BE_TEMPDIR"] = tempdir
 
-    env = dict(os.environ, **{
-        "BE_PROJECT": project,
-        "BE_ITEM": item,
-        "BE_TYPE": task,
-        "BE_DEVELOPMENTDIR": development_dir,
-        "BE_PROJECTROOT": os.path.join(
-            _extern.cwd(), project).replace("\\", "/"),
-        "BE_PROJECTSROOT": _extern.cwd(),
-        "BE_ACTIVE": "True",
-        "BE_USER": str(as_),
-        "BE_SCRIPT": "",
-        "BE_PYTHON": "",
-        "BE_ENTER": "1" if enter else "",
-        "BE_TEMPDIR": tempdir,
-    })
+    if enter and not os.path.exists(development_dir):
+        create = False
+        if yes:
+            create = True
+        else:
+            sys.stdout.write("No development directory found. Create? [Y/n]: ")
+            if raw_input().lower() in ("", "y", "yes"):
+                create = True
+        if create:
+            ctx.invoke(mkdir, dir=development_dir)
+        else:
+            sys.stdout.write("Cancelled")
+            sys.exit(lib.NORMAL)
 
     # Parse be.yaml
     if "script" in settings:
-        env["BE_SCRIPT"] = _extern.write_script(settings["script"], tempdir)
+        environment["BE_SCRIPT"] = _extern.write_script(settings["script"], tempdir)
 
     if "python" in settings:
         script = ";".join(settings["python"])
-        env["BE_PYTHON"] = script
+        environment["BE_PYTHON"] = script
         try:
             exec(script, {"__name__": __name__})
         except Exception as e:
             lib.echo("ERROR: %s" % e)
+
+    invalids = [v for v in environment.values() if not isinstance(v, str)]
+    assert all(isinstance(v, str) for v in environment.values()), invalids
 
     # Create aliases
     cd_alias = ("cd %BE_DEVELOPMENTDIR%"
@@ -178,19 +203,19 @@ def in_(ctx, context, yes, as_, enter):
     aliases["home"] = cd_alias
     aliases_dir = _extern.write_aliases(aliases, tempdir)
 
-    env["PATH"] = aliases_dir + os.pathsep + env.get("PATH", "")
-    env["BE_ALIASDIR"] = aliases_dir
+    environment["PATH"] = aliases_dir + os.pathsep + environment.get("PATH", "")
+    environment["BE_ALIASDIR"] = aliases_dir
 
     for map_source, map_dest in settings.get("redirect", {}).items():
-        env[map_dest] = env[map_source]
+        environment[map_dest] = environment[map_source]
 
     if "BE_TESTING" in os.environ:
         os.chdir(development_dir)
-        os.environ.update(env)
+        os.environ.update(environment)
         return
 
     try:
-        sys.exit(subprocess.call(shell, shell=True, env=env))
+        sys.exit(subprocess.call(shell, shell=True, env=environment))
     finally:
         import shutil
         shutil.rmtree(tempdir)
@@ -371,6 +396,18 @@ def ls():
     sys.exit(lib.NORMAL)
 
 
+@click.command()
+@click.argument("dir", default=os.environ.get("BE_DEVELOPMENTDIR"))
+@click.option("-e", "--enter", is_flag=True)
+def mkdir(dir, enter):
+    """Create directory with template for topic of the current environment
+
+    """
+
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+
+
 @click.group()
 def preset():
     """Create, manipulate and query presets"""
@@ -470,14 +507,13 @@ def what():
         lib.echo("ERROR: Enter a project first")
         sys.exit(lib.USER_ERROR)
 
-    lib.echo("{}/{}/{}".format(*(
-        os.environ.get(k, "")
-        for k in ("BE_PROJECT", "BE_ITEM", "BE_TYPE"))))
+    lib.echo(os.environ.get("BE_TOPIC", "This is a bug"))
 
 
 main.add_command(in_, name="in")
 main.add_command(new)
 main.add_command(ls)
+main.add_command(mkdir)
 main.add_command(dump)
 main.add_command(what, name="?")
 main.add_command(update)
