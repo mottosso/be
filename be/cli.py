@@ -188,7 +188,7 @@ def in_(ctx, topics, yes, as_, enter):
         script = ";".join(settings["python"])
         environment["BE_PYTHON"] = script
         try:
-            exec(script, {"__name__": __name__})
+            exec script in {"__name__": __name__}
         except Exception as e:
             lib.echo("ERROR: %s" % e)
 
@@ -504,7 +504,7 @@ def what():
     """Print current context"""
 
     if not self.isactive():
-        lib.echo("ERROR: Enter a project first")
+        lib.echo("No topic")
         sys.exit(lib.USER_ERROR)
 
     lib.echo(os.environ.get("BE_TOPIC", "This is a bug"))
