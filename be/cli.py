@@ -185,7 +185,7 @@ def in_(ctx, topics, yes, as_, enter):
         environment["BE_SCRIPT"] = _extern.write_script(settings["script"], tempdir)
 
     if "python" in settings:
-        script = ";".join(settings["python"])
+        script = "\n".join(settings["python"])
         environment["BE_PYTHON"] = script
         try:
             exec script in {"__name__": __name__}
