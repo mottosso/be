@@ -196,8 +196,9 @@ def get(path, **kwargs):
     try:
         response = requests.get(path, verify=False, **kwargs)
         if response.status_code == 403:
-            lib.echo("Patience: You can't pull more than 40 "
-                     "presets per hour without an API token.")
+            lib.echo("Patience: You can't pull more than 60 "
+                     "presets per hour without an API token.\n"
+                     "See https://github.com/mottosso/be/wiki/advanced#extended-preset-access")
             sys.exit(lib.USER_ERROR)
         return response
     except Exception as e:
