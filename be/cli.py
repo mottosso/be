@@ -95,11 +95,12 @@ def in_(ctx, topics, yes, as_, enter):
         lib.echo("ERROR: Exit current project first")
         sys.exit(lib.USER_ERROR)
 
+    # Determine topic syntax
     if len(topics[0].split("/")) == 3:
-        syntax = FIXED
+        topic_syntax = FIXED
         project = topics[0].split("/")[0]
     else:
-        syntax = POSITIONAL
+        topic_syntax = POSITIONAL
         project = topics[0]
 
     project_dir = _format.project_dir(_extern.cwd(), project)
@@ -110,8 +111,8 @@ def in_(ctx, topics, yes, as_, enter):
         sys.exit(lib.USER_ERROR)
 
     # Boot up
-    settings = _extern.load_settings(project)
     templates = _extern.load_templates(project)
+    settings = _extern.load_settings(project)
     inventory = _extern.load_inventory(project)
     environment = _extern.load_environment(project)
     environment.update({
@@ -136,12 +137,26 @@ def in_(ctx, topics, yes, as_, enter):
     })
     environment.update(os.environ)
 
-    # Determine syntax
-    if syntax & POSITIONAL:
-        development_dir = _format.new_development_directory(
+    # Remap topic syntax
+    # In cases where the topic is entered in a way that
+    # differs from the template, remap topic to template.
+    if any(re.findall("{\d+}", pattern) for pattern in templates.values()):
+        template_syntax = POSITIONAL
+    else:
+        template_syntax = FIXED
+
+    if topic_syntax & POSITIONAL and not template_syntax & POSITIONAL:
+        topics = ["/".join(topics)]
+    if topic_syntax & FIXED and not template_syntax & FIXED:
+        topics[:] = " ".join(topics[0].split("/"))
+    
+    # Finally, determine a development directory
+    # based on the template-, not topic-syntax.
+    if template_syntax & POSITIONAL:
+        development_dir = _format.pos_development_directory(
             settings, templates, inventory, environment, topics, as_)
-    else:  # FIXED syntax
-        development_dir = _format.development_directory(
+    else:  # FIXED topic_syntax
+        development_dir = _format.fixed_development_directory(
             templates, inventory, topics, as_)
 
     environment["BE_DEVELOPMENTDIR"] = development_dir
