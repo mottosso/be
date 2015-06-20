@@ -13,6 +13,7 @@ Return codes:
 """
 
 import os
+import re
 import sys
 import time
 import getpass
@@ -55,21 +56,11 @@ def main(verbose):
         "spiderman" created.
         $ be ls
         - spiderman
-        $ be in spiderman/shot1/animation
+        $ be in spiderman shot1 animation
         $ be dump
         BE_PROJECT=spiderman
         BE_ITEM=peter
         BE_TASK=model
-
-    \b
-    Environment:
-        BE_PROJECT (str): Name of current project
-        BE_ITEM (str): Name of current item
-        BE_TYPE (str): Family of current item
-        BE_DEVELOPMENTDIR (str): Absolute path to current development directory
-        BE_PROJECTROOT (str): Absolute path to current project
-        BE_PROJECTSROOT (str): Absolute path to where projects are located
-        BE_ACTIVE (bool): In an active environment
 
     """
 
@@ -79,7 +70,7 @@ def main(verbose):
 main.help = main.help.format(version)
 
 
-@click.command()
+@main.command(name="in")
 @click.argument("topics", nargs=-1, required=True)
 @click.option("-y", "--yes", is_flag=True,
               help="Automatically accept any questions")
@@ -207,6 +198,12 @@ def in_(ctx, topics, yes, as_, enter):
     environment["BE_ALIASDIR"] = aliases_dir
 
     for map_source, map_dest in settings.get("redirect", {}).items():
+        if re.match("{\d+}", map_source):
+            topics_index = int(map_source.strip("{}"))
+            topics_value = topics[topics_index]
+            environment[map_dest] = topics_value
+            continue
+
         environment[map_dest] = environment[map_source]
 
     if "BE_TESTING" in os.environ:
@@ -221,7 +218,7 @@ def in_(ctx, topics, yes, as_, enter):
         shutil.rmtree(tempdir)
 
 
-@click.command()
+@main.command()
 @click.argument("preset")
 @click.option("--name", help="Name of your new project")
 @click.option("--silent", is_flag=True,
@@ -311,7 +308,7 @@ def new(preset, name, silent, update):
     lib.echo("\"%s\" created" % name, silent)
 
 
-@click.command()
+@main.command()
 @click.argument("preset")
 @click.option("--clean", is_flag=True)
 def update(preset, clean):
@@ -364,7 +361,7 @@ def update(preset, clean):
         lib.echo("Cancelled")
 
 
-@click.command()
+@main.command()
 def ls():
     """List contents of current context
 
@@ -396,7 +393,7 @@ def ls():
     sys.exit(lib.NORMAL)
 
 
-@click.command()
+@main.command()
 @click.argument("dir", default=os.environ.get("BE_DEVELOPMENTDIR"))
 @click.option("-e", "--enter", is_flag=True)
 def mkdir(dir, enter):
@@ -413,7 +410,7 @@ def preset():
     """Create, manipulate and query presets"""
 
 
-@click.command()
+@preset.command(name="ls")
 @click.option("--remote", is_flag=True, help="List remote presets")
 def preset_ls(remote):
     """List presets
@@ -444,7 +441,7 @@ def preset_ls(remote):
     sys.exit(lib.NORMAL)
 
 
-@click.command()
+@preset.command(name="find")
 @click.argument("query")
 def preset_find(query):
     """Find preset from hub
@@ -466,7 +463,7 @@ def preset_find(query):
         lib.echo("Unable to locate preset \"%s\"" % query)
 
 
-@click.command()
+@main.command()
 def dump():
     """Print current environment
 
@@ -499,7 +496,7 @@ def dump():
     sys.exit(lib.NORMAL)
 
 
-@click.command()
+@main.command(name="?")
 def what():
     """Print current context"""
 
@@ -508,18 +505,6 @@ def what():
         sys.exit(lib.USER_ERROR)
 
     lib.echo(os.environ.get("BE_TOPIC", "This is a bug"))
-
-
-main.add_command(in_, name="in")
-main.add_command(new)
-main.add_command(ls)
-main.add_command(mkdir)
-main.add_command(dump)
-main.add_command(what, name="?")
-main.add_command(update)
-main.add_command(preset)
-preset.add_command(preset_ls, name="ls")
-preset.add_command(preset_find, name="find")
 
 
 if __name__ == '__main__':
