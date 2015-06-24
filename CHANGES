@@ -4,6 +4,7 @@ be Changelog
 Version 0.2.2
 ----------------
 
+- Always including default configuration files
 - Custom environment variables can now include auxiliary `be` variables:
     - `BE_SCRIPT`
     - `BE_PYTHON`
