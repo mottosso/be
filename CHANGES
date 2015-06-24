@@ -1,0 +1,11 @@
+be Changelog
+=================
+
+Version 0.2.2
+----------------
+
+- Custom environment variables can now include auxiliary `be` variables:
+    - `BE_SCRIPT`
+    - `BE_PYTHON`
+    - `BE_DEVELOPMENTDIR`
+    - `BE_ALIASDIR`
