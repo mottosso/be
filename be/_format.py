@@ -37,7 +37,7 @@ def pos_development_directory(settings,
     highest_available = len(topics) - 1
     if highest_available < highest_argument:
         lib.echo("Template for \"%s\" requires at least %i arguments" % (
-            template_key, highest_argument))
+            template_key, highest_argument + 1))
         sys.exit(lib.USER_ERROR)
 
     try:
