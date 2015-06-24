@@ -53,12 +53,14 @@ def cwd():
     return os.getcwd().replace("\\", "/")
 
 
+def parse_environment(environment, existing):
+    environment = _join_environment(environment)
+    environment = _resolve_environment(environment, existing)
+    return environment
+
+
 def load_settings(project):
     return load(project, "be", optional=True)
-
-
-def load_environment(project):
-    return load(project, "environment", optional=True)
 
 
 def load_templates(project):
@@ -69,7 +71,7 @@ def load_templates(project):
 
     """
 
-    return resolve_references(load(project, "templates"))
+    return _resolve_references(load(project, "templates"))
 
 
 def load_inventory(project):
@@ -362,7 +364,45 @@ def copy_preset(preset_dir, project_dir):
             shutil.copytree(src, dest)
 
 
-def resolve_references(templates):
+def _join_environment(environment):
+    """Concatenate lists"""
+    for key, value in environment.copy().iteritems():
+        if isinstance(value, list):
+            environment[key] = os.pathsep.join(value)
+    return environment
+
+
+def _parse_environment_pathsep(environment):
+    """Replace Windows with Linux path-separators on Linux, and vice versa"""
+    for key, value in environment.copy().iteritems():
+        right, wrong = ";:" if os.name == "nt" else ":;"
+        environment[key] = value.replace(wrong, right)
+    return environment
+
+
+def _resolve_environment(environment, existing):
+    """Resolve $ occurences by expansion
+
+    Given a dictionary {"PATH": "$PATH;somevalue"}
+    Return {"PATH": "value_of_PATH;somevalue"}
+
+    """
+
+    def repl(match):
+        key = pattern[match.start():match.end()].strip("$")
+        if key not in existing:
+            sys.stderr.write("ERROR: Unavailable environment variable: \"%s\"" % key)
+            sys.exit(lib.USER_ERROR)
+        return existing[key]
+
+    pat = re.compile("\$\w+", re.IGNORECASE)
+    for key, pattern in environment.copy().iteritems():
+        environment[key] = pat.sub(repl, pattern)
+
+    return environment
+
+
+def _resolve_references(templates):
     """Resolve {@} occurences by expansion
 
     Given a dictionary {"a": "{@b}/x", "b": "{key}/y"}

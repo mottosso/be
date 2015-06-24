@@ -114,8 +114,7 @@ def in_(ctx, topics, yes, as_, enter):
     templates = _extern.load_templates(project)
     settings = _extern.load_settings(project)
     inventory = _extern.load_inventory(project)
-    environment = _extern.load_environment(project)
-    environment.update({
+    environment = {
         "BE_PROJECT": project,
         "BE_ALIASDIR": "",
         "BE_CWD": _extern.cwd(),
@@ -134,8 +133,15 @@ def in_(ctx, topics, yes, as_, enter):
         "BE_TEMPDIR": "",
         "BE_PRESETSDIR": "",
         "BE_GITHUB_API_TOKEN": ""
-    })
+    }
     environment.update(os.environ)
+
+    # Override inherited environment
+    # with that coming from be.yaml.
+    if "environment" in settings:
+        environment.update(_extern.parse_environment(
+            settings["environment"],
+            existing=environment))
 
     # Remap topic syntax
     # In cases where the topic is entered in a way that
