@@ -136,13 +136,6 @@ def in_(ctx, topics, yes, as_, enter):
     }
     environment.update(os.environ)
 
-    # Override inherited environment
-    # with that coming from be.yaml.
-    if "environment" in settings:
-        environment.update(_extern.parse_environment(
-            settings["environment"],
-            existing=environment))
-
     # Remap topic syntax
     # In cases where the topic is entered in a way that
     # differs from the template, remap topic to template.
@@ -231,6 +224,13 @@ def in_(ctx, topics, yes, as_, enter):
         os.chdir(development_dir)
         os.environ.update(environment)
         return
+
+    # Override inherited environment
+    # with that coming from be.yaml.
+    if "environment" in settings:
+        environment.update(_extern.parse_environment(
+            settings["environment"],
+            existing=environment))
 
     try:
         sys.exit(subprocess.call(shell, shell=True, env=environment))
