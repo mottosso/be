@@ -136,7 +136,7 @@ def in_(ctx, topics, yes, as_, enter):
     }
     environment.update(os.environ)
 
-    # Remap topic syntax
+    # Remap topic syntax, for backwards compatibility
     # In cases where the topic is entered in a way that
     # differs from the template, remap topic to template.
     if any(re.findall("{\d+}", pattern) for pattern in templates.values()):

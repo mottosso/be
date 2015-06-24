@@ -352,9 +352,9 @@ def copy_preset(preset_dir, project_dir):
     for fname in os.listdir(preset_dir):
         src = os.path.join(preset_dir, fname)
 
-        files = package.get("contents") or self.files
+        contents = package.get("contents") or []
 
-        if fname not in files:
+        if fname not in self.files + contents:
             continue
 
         if os.path.isfile(src):
