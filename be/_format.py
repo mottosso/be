@@ -200,8 +200,8 @@ def template_from_item(inventory, item):
                 item_ = item_.keys()[0]
             item_ = str(item_)  # Key may be number
             if item_ in templates:
-                print("Warning: Duplicate template found "
-                      "for \"%s:%s\"" % (template, item))
+                print("Warning: Duplicate item found "
+                      "for \"%s: %s\"" % (template, item_))
             templates[item_] = template
 
     try:
@@ -214,13 +214,3 @@ def template_from_item(inventory, item):
             for item_ in sorted(templates, key=lambda a: (templates[a], a)):
                 lib.echo("- %s (%s)" % (item_, templates[item_]))
         sys.exit(1)
-
-
-
-if __name__ == "__main__":
-    inventory = {
-        "character": ["ben", "jerry"],
-        "prop": ["table"],
-        "shot": [1000, 2000]
-    }
-    print items_from_inventory(inventory)
