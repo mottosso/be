@@ -440,6 +440,7 @@ def _resolve_references(templates):
     """
 
     def repl(match):
+        lib.echo("Deprecation warning: The {@ref} syntax is being removed")
         key = pattern[match.start():match.end()].strip("@{}")
         if key not in templates:
             sys.stderr.write("Unresolvable reference: \"%s\"" % key)
