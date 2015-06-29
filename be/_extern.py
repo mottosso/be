@@ -5,6 +5,7 @@ Attributes:
     self.headers: Optional GitHub authentication headers
     self.files: Files supported in remote presets
     self.verbose: Whether or not to output debugging messages
+
 """
 
 import os
@@ -200,7 +201,8 @@ def get(path, **kwargs):
         if response.status_code == 403:
             lib.echo("Patience: You can't pull more than 60 "
                      "presets per hour without an API token.\n"
-                     "See https://github.com/mottosso/be/wiki/advanced#extended-preset-access")
+                     "See https://github.com/mottosso/be/wiki"
+                     "/advanced#extended-preset-access")
             sys.exit(lib.USER_ERROR)
         return response
     except Exception as e:
@@ -219,7 +221,8 @@ def repo_is_preset(repo):
 
     """
 
-    package_template = "https://raw.githubusercontent.com/{repo}/master/package.json"
+    package_template = "https://raw.githubusercontent.com"
+    package_template += "/{repo}/master/package.json"
     package_path = package_template.format(repo=repo)
 
     response = get(package_path)
@@ -252,8 +255,8 @@ def download_file(url):
     local_filename = url.split('/')[-1]
     r = requests.get(url, stream=True)
     with open(local_filename, 'wb') as f:
-        for chunk in r.iter_content(chunk_size=1024): 
-            if chunk: # filter out keep-alive new chunks
+        for chunk in r.iter_content(chunk_size=1024):
+            if chunk:  # filter out keep-alive new chunks
                 f.write(chunk)
                 f.flush()
     return local_filename
@@ -268,7 +271,7 @@ def pull_preset(repo, preset_dir):
 
     if not repo_is_preset(repo):
         lib.echo("ERROR: %s does not appear to be a preset, "
-                  "try --verbose for more information." % repo)
+                 "try --verbose for more information." % repo)
         sys.exit(lib.USER_ERROR)
 
     url = "https://api.github.com/repos/%s/tarball" % repo
@@ -291,10 +294,10 @@ def pull_preset(repo, preset_dir):
 
 def unzip_preset(src, dest):
     tempdir = os.path.dirname(src)
-    
+
     if self.verbose:
         lib.echo("Unpacking %s -> %s" % (src, tempdir))
-    
+
     try:
         tar = tarfile.open(src)
         tar.extractall(tempdir)
@@ -310,7 +313,7 @@ def unzip_preset(src, dest):
 
     if self.verbose:
         lib.echo("Moving %s -> %s" % (repo, dest))
-    
+
     presets_dir()  # Create if it doesn't exist
 
     shutil.move(repo, dest)
@@ -391,7 +394,8 @@ def _resolve_environment(environment, existing):
     def repl(match):
         key = pattern[match.start():match.end()].strip("$")
         if key not in existing:
-            sys.stderr.write("ERROR: Unavailable environment variable: \"%s\"" % key)
+            sys.stderr.write("ERROR: Unavailable "
+                             "environment variable: \"%s\"" % key)
             sys.exit(lib.USER_ERROR)
         return existing[key]
 

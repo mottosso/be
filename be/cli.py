@@ -1,7 +1,7 @@
 """be - Minimal Asset Management System
 
 Usage:
-    $ be project/item/task
+    $ be project item task
 
 Return codes:
     0: No error
@@ -148,7 +148,7 @@ def in_(ctx, topics, yes, as_, enter):
         topics = ["/".join(topics)]
     if topic_syntax & FIXED and not template_syntax & FIXED:
         topics[:] = " ".join(topics[0].split("/"))
-    
+
     # Finally, determine a development directory
     # based on the template-, not topic-syntax.
     if template_syntax & POSITIONAL:
@@ -187,7 +187,8 @@ def in_(ctx, topics, yes, as_, enter):
 
     # Parse be.yaml
     if "script" in settings:
-        environment["BE_SCRIPT"] = _extern.write_script(settings["script"], tempdir)
+        environment["BE_SCRIPT"] = _extern.write_script(
+            settings["script"], tempdir)
 
     if "python" in settings:
         script = "\n".join(settings["python"])
@@ -208,7 +209,9 @@ def in_(ctx, topics, yes, as_, enter):
     aliases["home"] = cd_alias
     aliases_dir = _extern.write_aliases(aliases, tempdir)
 
-    environment["PATH"] = aliases_dir + os.pathsep + environment.get("PATH", "")
+    environment["PATH"] = (aliases_dir
+                           + os.pathsep
+                           + environment.get("PATH", ""))
     environment["BE_ALIASDIR"] = aliases_dir
 
     for map_source, map_dest in settings.get("redirect", {}).items():
@@ -313,7 +316,8 @@ def new(preset, name, silent, update):
             try:
                 _extern.pull_preset(repository, preset_dir)
             except IOError as e:
-                lib.echo("ERROR: Sorry, something went wrong. Use --verbose for more")
+                lib.echo("ERROR: Sorry, something went wrong. "
+                         "Use --verbose for more")
                 lib.echo(e)
                 sys.exit(lib.USER_ERROR)
 
