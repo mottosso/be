@@ -8,17 +8,15 @@ self = sys.modules[__name__]
 self.bindings = {}
 
 
-def pos_development_directory(be,
-                              templates,
+def pos_development_directory(templates,
                               inventory,
-                              environment,
+                              context,
                               topics,
                               user,
                               item):
     """Return absolute path to development directory
 
     Arguments:
-        be (dict): be.yaml
         templates (dict): templates.yaml
         inventory (dict): inventory.yaml
         topics (list): Arguments to `in`
@@ -26,9 +24,9 @@ def pos_development_directory(be,
 
     """
 
-    replacement_fields = replacement_fields_from_environment(environment)
-    template = binding_from_item(inventory, item)
-    pattern = pattern_from_template(templates, template)
+    replacement_fields = replacement_fields_from_context(context)
+    binding = binding_from_item(inventory, item)
+    pattern = pattern_from_template(templates, binding)
 
     positional_arguments = find_positional_arguments(pattern)
     highest_argument = find_highest_position(positional_arguments)
@@ -90,19 +88,19 @@ def fixed_development_directory(templates, inventory, topics, user):
         sys.exit(1)
 
 
-def replacement_fields_from_environment(environment):
-    """Convert be environment variables to replacement fields
+def replacement_fields_from_context(context):
+    """Convert context replacement fields
 
     Example:
         BE_KEY=value -> {"key": "value}
 
     Arguments:
-        environment (dict): The `be` environment
+        context (dict): The current context
 
     """
 
-    return dict((k[3:].lower(), environment[k])
-                for k in environment if k.startswith("BE_"))
+    return dict((k[3:].lower(), context[k])
+                for k in context if k.startswith("BE_"))
 
 
 def item_from_topics(key, topics):
@@ -174,16 +172,31 @@ def pattern_from_template(templates, name):
     return templates[name]
 
 
-def items_from_inventory(inventory):
-    items_ = list()
-    for template, items in inventory.iteritems():
+def invert_inventory(inventory):
+    """Return {item: binding} from {binding: item}
+
+    Protect against items with additional metadata
+    and items whose type is a number
+
+    Returns:
+        Dictionary of inverted inventory
+
+    """
+
+    inverted = dict()
+    for binding, items in inventory.iteritems():
         for item in items:
-            if item in items_:
+            if isinstance(item, dict):
+                item = item.keys()[0]
+            item = str(item)  # Key may be number
+
+            if item in inverted:
                 lib.echo("Warning: Duplicate item found, "
-                         "for \"%s\"" % item)
+                         "for \"%s: %s\"" % (binding, item))
                 continue
-            items_.append(item)
-    return items_
+            inverted[item] = binding
+
+    return inverted
 
 
 def binding_from_item(inventory, item):
@@ -204,31 +217,22 @@ def binding_from_item(inventory, item):
     if item in self.bindings:
         return self.bindings[item]
 
-    templates = dict()
-    for binding, items_ in inventory.iteritems():
-        for item_ in items_:
-            if isinstance(item_, dict):
-                item_ = item_.keys()[0]
-            item_ = str(item_)  # Key may be number
-            if item_ in templates:
-                lib.echo("Warning: Duplicate item found "
-                         "for \"%s: %s\"" % (binding, item_))
-            templates[item_] = binding
+    bindings = invert_inventory(inventory)
 
     try:
-        self.bindings[item] = templates[item]
-        return templates[item]
+        self.bindings[item] = bindings[item]
+        return bindings[item]
 
     except KeyError:
         lib.echo("\"%s\" not found" % item)
-        if templates:
+        if bindings:
             lib.echo("\nAvailable:")
-            for item_ in sorted(templates, key=lambda a: (templates[a], a)):
-                lib.echo("- %s (%s)" % (item_, templates[item_]))
+            for item_ in sorted(bindings, key=lambda a: (bindings[a], a)):
+                lib.echo("- %s (%s)" % (item_, bindings[item_]))
         sys.exit(1)
 
 
-def parse_environment(fields, environment, topics):
+def parse_environment(fields, context, topics):
     """Resolve the be.yaml environment key
 
     Features:
@@ -239,77 +243,94 @@ def parse_environment(fields, environment, topics):
 
     """
 
+    def _resolve_environment_lists(context):
+        """Concatenate environment lists"""
+        for key, value in context.copy().iteritems():
+            if isinstance(value, list):
+                context[key] = os.pathsep.join(value)
+        return context
+
+    def _resolve_environment_references(fields, context):
+        """Resolve $ occurences by expansion
+
+        Given a dictionary {"PATH": "$PATH;somevalue;{0}"}
+        Return {"PATH": "value_of_PATH;somevalue;myproject"},
+        given that the first topic - {0} - is "myproject"
+
+        Arguments:
+            fields (dict): Environment from be.yaml
+            context (dict): Source context
+
+        """
+
+        def repl(match):
+            key = pattern[match.start():match.end()].strip("$")
+            if key not in context:
+                sys.stderr.write("ERROR: Unavailable "
+                                 "fields variable: \"%s\"" % key)
+                sys.exit(lib.USER_ERROR)
+            return context[key]
+
+        pat = re.compile("\$\w+", re.IGNORECASE)
+        for key, pattern in fields.copy().iteritems():
+            fields[key] = pat.sub(repl, pattern)
+
+        return fields
+
+    def _resolve_environment_fields(fields, context, topics):
+        """Resolve {} occurences
+
+        Supports both positional and BE_-prefixed variables.
+
+        Example:
+            BE_MYKEY -> "{myvalue}" from `BE_MYKEY`
+            {1} -> "{mytask}" from `be in myproject mytask`
+
+        Returns:
+            Dictionary of resolved fields
+
+        """
+
+        source_dict = replacement_fields_from_context(context)
+        source_dict.update(dict((str(topics.index(topic)), topic)
+                                for topic in topics))
+
+        def repl(match):
+            key = pattern[match.start():match.end()].strip("{}")
+            try:
+                return source_dict[key]
+            except KeyError:
+                lib.echo("PROJECT ERROR: Unavailable reference \"%s\" "
+                         "in be.yaml" % key)
+                sys.exit(lib.PROJECT_ERROR)
+
+        for key, pattern in fields.copy().iteritems():
+            fields[key] = re.sub("{[\d\w]+}", repl, pattern)
+
+        return fields
+
     fields = _resolve_environment_lists(fields)
-    fields = _resolve_environment_references(fields, environment)
-    fields = _resolve_environment_fields(fields, environment, topics)
+    fields = _resolve_environment_references(fields, context)
+    fields = _resolve_environment_fields(fields, context, topics)
+
     return fields
 
 
-def _resolve_environment_lists(environment):
-    """Concatenate environment lists"""
-    for key, value in environment.copy().iteritems():
-        if isinstance(value, list):
-            environment[key] = os.pathsep.join(value)
-    return environment
-
-
-def _resolve_environment_references(fields, environment):
-    """Resolve $ occurences by expansion
-
-    Given a dictionary {"PATH": "$PATH;somevalue;{0}"}
-    Return {"PATH": "value_of_PATH;somevalue;myproject"},
-    given that the first topic - {0} - is "myproject"
+def parse_redirect(redirect, topics, context):
+    """Resolve the be.yaml redirect key
 
     Arguments:
-        fields (dict): Environment from be.yaml
-        environment (dict): Source environment
+        redirect (dict): Source/destination pairs, e.g. {BE_ACTIVE: ACTIVE}
+        topics (tuple): Topics from which to sample, e.g. (project, item, task)
+        context (dict): Context from which to sample
 
     """
 
-    # Resolve references
-    def repl(match):
-        key = pattern[match.start():match.end()].strip("$")
-        if key not in environment:
-            sys.stderr.write("ERROR: Unavailable "
-                             "fields variable: \"%s\"" % key)
-            sys.exit(lib.USER_ERROR)
-        return environment[key]
+    for map_source, map_dest in redirect.items():
+        if re.match("{\d+}", map_source):
+            topics_index = int(map_source.strip("{}"))
+            topics_value = topics[topics_index]
+            context[map_dest] = topics_value
+            continue
 
-    pat = re.compile("\$\w+", re.IGNORECASE)
-    for key, pattern in fields.copy().iteritems():
-        fields[key] = pat.sub(repl, pattern)
-
-    return fields
-
-
-def _resolve_environment_fields(fields, environment, topics):
-    """Resolve {} occurences
-
-    Supports both positional and BE_-prefixed variables.
-
-    Example:
-        BE_MYKEY -> "{myvalue}" from `BE_MYKEY`
-        {1} -> "{mytask}" from `be in myproject mytask`
-
-    Returns:
-        Dictionary of resolved fields
-
-    """
-
-    source_dict = replacement_fields_from_environment(environment)
-    source_dict.update(dict((str(topics.index(topic)), topic)
-                            for topic in topics))
-
-    def repl(match):
-        key = pattern[match.start():match.end()].strip("{}")
-        try:
-            return source_dict[key]
-        except KeyError:
-            lib.echo("PROJECT ERROR: Unavailable reference \"%s\" "
-                     "in be.yaml" % key)
-            sys.exit(lib.PROJECT_ERROR)
-
-    for key, pattern in fields.copy().iteritems():
-        fields[key] = re.sub("{[\d\w]+}", repl, pattern)
-
-    return fields
+        context[map_dest] = context[map_source]

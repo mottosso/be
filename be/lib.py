@@ -5,6 +5,7 @@ import random
 
 import _data
 import _extern
+import _format
 
 NORMAL = 0
 PROGRAM_ERROR = 1
@@ -15,6 +16,34 @@ TEMPLATE_ERROR = 4
 # Topic syntaxes
 FIXED = 1 << 0
 POSITIONAL = 1 << 1
+
+
+def context(project):
+    environment = {
+        "BE_PROJECT": project,
+        "BE_ALIASDIR": "",
+        "BE_CWD": _extern.cwd(),
+        "BE_CD": "",
+        "BE_ROOT": "",
+        "BE_TOPICS": "",
+        "BE_DEVELOPMENTDIR": "",
+        "BE_PROJECTROOT": os.path.join(
+            _extern.cwd(), project).replace("\\", "/"),
+        "BE_PROJECTSROOT": _extern.cwd(),
+        "BE_ACTIVE": "True",
+        "BE_USER": "",
+        "BE_SCRIPT": "",
+        "BE_PYTHON": "",
+        "BE_ENTER": "0",
+        "BE_TEMPDIR": "",
+        "BE_PRESETSDIR": "",
+        "BE_GITHUB_API_TOKEN": "",
+        "BE_ENVIRONMENT": "",
+        "BE_BINDING": ""
+    }
+    environment.update(os.environ)
+
+    return environment
 
 
 def map_redirect(redirect, topics, environment):

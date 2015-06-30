@@ -128,32 +128,16 @@ def in_(ctx, topics, yes, as_, enter):
         sys.exit(lib.USER_ERROR)
 
     # Boot up
-    templates = _extern.load_templates(project)
+    context = lib.context(project)
+
     be = _extern.load_be(project)
+    templates = _extern.load_templates(project)
     inventory = _extern.load_inventory(project)
-    environment = {
+    context.update({
         "BE_PROJECT": project,
-        "BE_ALIASDIR": "",
-        "BE_CWD": _extern.cwd(),
-        "BE_CD": "",
-        "BE_ROOT": "",
-        "BE_TOPICS": " ".join(topics),  # e.g. shot1 anim
-        "BE_DEVELOPMENTDIR": "",
-        "BE_PROJECTROOT": os.path.join(
-            _extern.cwd(), project).replace("\\", "/"),
-        "BE_PROJECTSROOT": _extern.cwd(),
-        "BE_ACTIVE": "True",
         "BE_USER": str(as_),
-        "BE_SCRIPT": "",
-        "BE_PYTHON": "",
-        "BE_ENTER": "1" if enter else "",
-        "BE_TEMPDIR": "",
-        "BE_PRESETSDIR": "",
-        "BE_GITHUB_API_TOKEN": "",
-        "BE_ENVIRONMENT": "",
-        "BE_BINDING": ""
-    }
-    environment.update(os.environ)
+        "BE_ENTER": "1" if enter else ""
+    })
 
     # Remap topic syntax, for backwards compatibility
     # In cases where the topic is entered in a way that
@@ -172,7 +156,7 @@ def in_(ctx, topics, yes, as_, enter):
         key = be.get("templates", {}).get("key") or "{1}"
         item = _format.item_from_topics(key, topics)
         binding = _format.binding_from_item(inventory, item)
-        environment["BE_BINDING"] = binding
+        context["BE_BINDING"] = binding
     except IndexError as exc:
         lib.echo("At least %s topics are required" % str(exc))
         sys.exit(lib.USER_ERROR)
@@ -181,13 +165,12 @@ def in_(ctx, topics, yes, as_, enter):
     # based on the template-, not topic-syntax.
     if template_syntax & lib.POSITIONAL:
         development_dir = _format.pos_development_directory(
-            be,
-            templates,
-            inventory,
-            environment,
-            topics,
-            as_,
-            item)
+            templates=templates,
+            inventory=inventory,
+            context=context,
+            topics=topics,
+            user=as_,
+            item=item)
     else:  # FIXED topic_syntax
         development_dir = _format.fixed_development_directory(
             templates,
@@ -195,7 +178,7 @@ def in_(ctx, topics, yes, as_, enter):
             topics,
             as_)
 
-    environment["BE_DEVELOPMENTDIR"] = development_dir
+    context["BE_DEVELOPMENTDIR"] = development_dir
 
     # Determine which subshell to launch
     dirname = os.path.dirname(__file__)
@@ -207,7 +190,7 @@ def in_(ctx, topics, yes, as_, enter):
     tempdir = (tempfile.mkdtemp()
                if "BE_TEMPDIR" not in os.environ
                else os.environ["BE_TEMPDIR"])
-    environment["BE_TEMPDIR"] = tempdir
+    context["BE_TEMPDIR"] = tempdir
 
     # Should it be entered?
     if enter and not os.path.exists(development_dir):
@@ -226,48 +209,49 @@ def in_(ctx, topics, yes, as_, enter):
 
     # Parse be.yaml
     if "script" in be:
-        environment["BE_SCRIPT"] = _extern.write_script(
+        context["BE_SCRIPT"] = _extern.write_script(
             be["script"], tempdir)
 
     if "python" in be:
         script = "\n".join(be["python"])
-        environment["BE_PYTHON"] = script
+        context["BE_PYTHON"] = script
         try:
             exec script in {"__name__": __name__}
         except Exception as e:
             lib.echo("ERROR: %s" % e)
 
-    invalids = [v for v in environment.values() if not isinstance(v, str)]
-    assert all(isinstance(v, str) for v in environment.values()), invalids
+    invalids = [v for v in context.values() if not isinstance(v, str)]
+    assert all(isinstance(v, str) for v in context.values()), invalids
 
     # Create aliases
-    aliases_dir = lib.write_aliases(
+    aliases_dir = _extern.write_aliases(
         be.get("alias", {}), tempdir)
 
-    environment["PATH"] = (aliases_dir
-                           + os.pathsep
-                           + environment.get("PATH", ""))
-    environment["BE_ALIASDIR"] = aliases_dir
+    context["PATH"] = (aliases_dir
+                       + os.pathsep
+                       + context.get("PATH", ""))
+    context["BE_ALIASDIR"] = aliases_dir
 
     # Parse redirects
-    lib.map_redirect(be.get("redirect", {}), topics, environment)
+    _format.parse_redirect(
+        be.get("redirect", {}), topics, context)
 
-    # Override inherited environment
+    # Override inherited context
     # with that coming from be.yaml.
-    if "environment" in be:
+    if "context" in be:
         parsed = _format.parse_environment(
-            fields=be["environment"],
-            environment=environment,
+            fields=be["context"],
+            context=context,
             topics=topics)
-        environment["BE_ENVIRONMENT"] = " ".join(parsed.keys())
-        environment.update(parsed)
+        context["BE_ENVIRONMENT"] = " ".join(parsed.keys())
+        context.update(parsed)
 
-    if "BE_TESTING" in environment:
+    if "BE_TESTING" in context:
         os.chdir(development_dir)
-        os.environ.update(environment)
+        os.environ.update(context)
     else:
         try:
-            sys.exit(subprocess.call(shell, shell=True, env=environment))
+            sys.exit(subprocess.call(shell, shell=True, env=context))
         finally:
             import shutil
             shutil.rmtree(tempdir)
@@ -418,14 +402,22 @@ def update(preset, clean):
 
 
 @main.command()
-def ls():
+@click.argument("topics", nargs=-1, required=False)
+def ls(topics):
     """List contents of current context
 
     \b
     Usage:
         $ be ls
+        - spiderman
+        - hulk
+        $ be ls spiderman
         - peter
-        - maryjane
+        - mjay
+        $ be ls spiderman seq01
+        - 1000
+        - 2000
+        - 2500
 
     """
 
@@ -433,19 +425,63 @@ def ls():
         lib.echo("ERROR: Exit current project first")
         sys.exit(lib.USER_ERROR)
 
-    projects = list()
-    for project in os.listdir(_extern.cwd()):
-        abspath = os.path.join(_extern.cwd(), project)
-        if not lib.isproject(abspath):
-            continue
-        projects.append(project)
-
-    if not projects:
-        lib.echo("Empty")
+    # List projects
+    if len(topics) == 0:
+        for project in sorted(os.listdir(_extern.cwd())):
+            abspath = os.path.join(_extern.cwd(), project)
+            if not lib.isproject(abspath):
+                continue
+            lib.echo("- %s (project)" % project)
         sys.exit(lib.NORMAL)
 
-    for project in sorted(projects):
-        lib.echo("- %s" % project)
+    # List inventory of project
+    elif len(topics) == 1:
+        inventory = _extern.load_inventory(topics[0])
+        inverted = _format.invert_inventory(inventory)
+        for item in sorted(inverted, key=lambda a: (inverted[a], a)):
+            lib.echo("- %s (%s)" % (item, inverted[item]))
+        sys.exit(lib.NORMAL)
+
+    # List specific portion of template
+    else:
+        project = topics[0]
+        context = lib.context(project)
+
+        be = _extern.load_be(project)
+        templates = _extern.load_templates(project)
+        inventory = _extern.load_inventory(project)
+
+        # Get item
+        try:
+            key = be.get("templates", {}).get("key") or "{1}"
+            item = _format.item_from_topics(key, topics)
+            binding = _format.binding_from_item(inventory, item)
+        except IndexError as exc:
+            lib.echo("At least %s topics are required" % str(exc))
+            sys.exit(lib.USER_ERROR)
+
+        fields = _format.replacement_fields_from_context(context)
+        binding = _format.binding_from_item(inventory, item)
+        pattern = _format.pattern_from_template(templates, binding)
+
+        trimmed_pattern = pattern[:pattern.index(str(len(topics)-1)) + 2]
+
+        try:
+            path = trimmed_pattern.format(*topics, **fields)
+        except IndexError:
+            lib.echo("Template for \"%s\" has unordered "
+                     "positional arguments: \"%s\"" % (item, pattern))
+            sys.exit(lib.NORMAL)
+
+        if not os.path.isdir(path):
+            # Nothing to show
+            sys.exit(lib.NORMAL)
+
+        for dirname in os.listdir(path):
+            if not os.path.isdir(os.path.join(path, dirname)):
+                continue
+            lib.echo("- %s" % dirname)
+
     sys.exit(lib.NORMAL)
 
 

@@ -122,9 +122,14 @@ def write_aliases(aliases, tempdir):
     """Write aliases to temporary directory
 
     Arguments:
-        alias (dict): {name: value} dict of aliases
+        aliases (dict): {name: value} dict of aliases
+        tempdir (str): Absolute path to where aliases will be stored
 
     """
+
+    home_alias = ("cd %BE_DEVELOPMENTDIR%"
+                  if os.name == "nt" else "cd $BE_DEVELOPMENTDIR")
+    aliases["home"] = home_alias
 
     tempdir = os.path.join(tempdir, "aliases")
     os.makedirs(tempdir)
