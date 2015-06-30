@@ -1,6 +1,11 @@
 be Changelog
 =================
 
+Version 0.2.4
+-------------
+
+- Legacy fixed syntax broken in last version, it is now working again.
+
 Version 0.2.3
 -------------
 
