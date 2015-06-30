@@ -166,7 +166,7 @@ def in_(ctx, topics, yes, as_, enter):
     if topic_syntax & lib.POSITIONAL and not template_syntax & lib.POSITIONAL:
         topics = ["/".join(topics)]
     if topic_syntax & lib.FIXED and not template_syntax & lib.FIXED:
-        topics[:] = " ".join(topics[0].split("/"))
+        topics[:] = topics[0].split("/")
 
     try:
         key = be.get("templates", {}).get("key") or "{1}"
