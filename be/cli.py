@@ -164,13 +164,23 @@ def in_(ctx, topics, yes, as_, enter):
     # Finally, determine a development directory
     # based on the template-, not topic-syntax.
     if template_syntax & lib.POSITIONAL:
-        development_dir = _format.pos_development_directory(
-            templates=templates,
-            inventory=inventory,
-            context=context,
-            topics=topics,
-            user=as_,
-            item=item)
+        try:
+            development_dir = _format.pos_development_directory(
+                templates=templates,
+                inventory=inventory,
+                context=context,
+                topics=topics,
+                user=as_,
+                item=item)
+        except KeyError as exc:
+            lib.echo("\"%s\" not found" % item)
+            if exc.bindings:
+                lib.echo("\nAvailable:")
+                for item_ in sorted(exc.bindings,
+                                    key=lambda a: (exc.bindings[a], a)):
+                    lib.echo("- %s (%s)" % (item_, exc.bindings[item_]))
+            sys.exit(lib.USER_ERROR)
+
     else:  # FIXED topic_syntax
         development_dir = _format.fixed_development_directory(
             templates,
@@ -403,6 +413,31 @@ def update(preset, clean):
 
 @main.command()
 @click.argument("topics", nargs=-1, required=False)
+def tab(topics):
+
+    # Discard `be tab`
+    topics = list(topics)[2:-1]
+
+    # Return projects
+    if len(topics) == 0:
+        sys.stdout.write(" ".join(lib.list_projects()))
+
+    # Return inventory
+    elif len(topics) == 1:
+        project = topics[0]
+        items = [x for x, y in lib.list_inventory(project)]
+        sys.stdout.write(" ".join(items))
+
+    # Return contents of template
+    else:
+        try:
+            sys.stdout.write(" ".join(lib.list_pattern(topics)))
+        except IndexError:
+            sys.exit(lib.USER_ERROR)
+
+
+@main.command()
+@click.argument("topics", nargs=-1, required=False)
 def ls(topics):
     """List contents of current context
 
@@ -419,6 +454,11 @@ def ls(topics):
         - 2000
         - 2500
 
+    Return codes:
+        0 Normal
+        2 When insufficient arguments are supplied,
+            or a template is unsupported.
+
     """
 
     if self.isactive():
@@ -427,60 +467,24 @@ def ls(topics):
 
     # List projects
     if len(topics) == 0:
-        for project in sorted(os.listdir(_extern.cwd())):
-            abspath = os.path.join(_extern.cwd(), project)
-            if not lib.isproject(abspath):
-                continue
+        for project in lib.list_projects():
             lib.echo("- %s (project)" % project)
         sys.exit(lib.NORMAL)
 
     # List inventory of project
     elif len(topics) == 1:
-        inventory = _extern.load_inventory(topics[0])
-        inverted = _format.invert_inventory(inventory)
-        for item in sorted(inverted, key=lambda a: (inverted[a], a)):
-            lib.echo("- %s (%s)" % (item, inverted[item]))
+        for item, binding in lib.list_inventory(project=topics[0]):
+            lib.echo("- %s (%s)" % (item, binding))
         sys.exit(lib.NORMAL)
 
     # List specific portion of template
     else:
-        project = topics[0]
-        context = lib.context(project)
-
-        be = _extern.load_be(project)
-        templates = _extern.load_templates(project)
-        inventory = _extern.load_inventory(project)
-
-        # Get item
         try:
-            key = be.get("templates", {}).get("key") or "{1}"
-            item = _format.item_from_topics(key, topics)
-            binding = _format.binding_from_item(inventory, item)
+            for item in lib.list_pattern(topics):
+                lib.echo("- %s" % item)
         except IndexError as exc:
-            lib.echo("At least %s topics are required" % str(exc))
+            lib.echo(exc)
             sys.exit(lib.USER_ERROR)
-
-        fields = _format.replacement_fields_from_context(context)
-        binding = _format.binding_from_item(inventory, item)
-        pattern = _format.pattern_from_template(templates, binding)
-
-        trimmed_pattern = pattern[:pattern.index(str(len(topics)-1)) + 2]
-
-        try:
-            path = trimmed_pattern.format(*topics, **fields)
-        except IndexError:
-            lib.echo("Template for \"%s\" has unordered "
-                     "positional arguments: \"%s\"" % (item, pattern))
-            sys.exit(lib.NORMAL)
-
-        if not os.path.isdir(path):
-            # Nothing to show
-            sys.exit(lib.NORMAL)
-
-        for dirname in os.listdir(path):
-            if not os.path.isdir(os.path.join(path, dirname)):
-                continue
-            lib.echo("- %s" % dirname)
 
     sys.exit(lib.NORMAL)
 

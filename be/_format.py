@@ -223,13 +223,9 @@ def binding_from_item(inventory, item):
         self.bindings[item] = bindings[item]
         return bindings[item]
 
-    except KeyError:
-        lib.echo("\"%s\" not found" % item)
-        if bindings:
-            lib.echo("\nAvailable:")
-            for item_ in sorted(bindings, key=lambda a: (bindings[a], a)):
-                lib.echo("- %s (%s)" % (item_, bindings[item_]))
-        sys.exit(1)
+    except KeyError as exc:
+        exc.bindings = bindings
+        raise exc
 
 
 def parse_environment(fields, context, topics):

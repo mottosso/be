@@ -41,46 +41,10 @@ def context(project):
         "BE_ENVIRONMENT": "",
         "BE_BINDING": ""
     }
+
     environment.update(os.environ)
 
     return environment
-
-
-def map_redirect(redirect, topics, environment):
-    """Map environment variables from `remap` key to their values
-
-    Arguments:
-        redirect (dict): Source/destination pairs, e.g. {BE_ACTIVE: ACTIVE}
-        topics (tuple): Topics from which to sample, e.g. (project, item, task)
-        environment (dict): Environmnent from which to sample
-
-    """
-
-    for map_source, map_dest in redirect.items():
-        if re.match("{\d+}", map_source):
-            topics_index = int(map_source.strip("{}"))
-            topics_value = topics[topics_index]
-            environment[map_dest] = topics_value
-            continue
-
-        environment[map_dest] = environment[map_source]
-
-
-def write_aliases(aliases, path):
-    """Write user-supplied aliases
-
-    Arguments:
-        aliases (list): Supplied aliases
-        path (str): Absolute path to where aliases are to be written
-
-    """
-
-    # Default "home" alias
-    home_alias = ("cd %BE_DEVELOPMENTDIR%"
-                  if os.name == "nt" else "cd $BE_DEVELOPMENTDIR")
-    aliases["home"] = home_alias
-
-    return _extern.write_aliases(aliases, path)
 
 
 def random_name():
@@ -126,3 +90,59 @@ def echo(text, silent=False, newline=True):
     if silent:
         return
     print(text) if newline else sys.stdout.write(text)
+
+
+def list_projects():
+    for project in sorted(os.listdir(_extern.cwd())):
+        abspath = os.path.join(_extern.cwd(), project)
+        if not isproject(abspath):
+            continue
+        yield project
+
+
+def list_inventory(project):
+    inventory = _extern.load_inventory(project)
+    inverted = _format.invert_inventory(inventory)
+    for item in sorted(inverted, key=lambda a: (inverted[a], a)):
+        yield item, inverted[item]
+
+
+def list_pattern(topics):
+    project = topics[0]
+
+    be = _extern.load_be(project)
+    templates = _extern.load_templates(project)
+    inventory = _extern.load_inventory(project)
+
+    # Get item
+    try:
+        key = be.get("templates", {}).get("key") or "{1}"
+        item = _format.item_from_topics(key, topics)
+        binding = _format.binding_from_item(inventory, item)
+
+    except KeyError:
+        return
+
+    except IndexError as exc:
+        raise IndexError("At least %s topics are required" % str(exc))
+
+    fields = _format.replacement_fields_from_context(context(project))
+    binding = _format.binding_from_item(inventory, item)
+    pattern = _format.pattern_from_template(templates, binding)
+
+    trimmed_pattern = pattern[:pattern.index(str(len(topics)-1)) + 2]
+
+    try:
+        path = trimmed_pattern.format(*topics, **fields)
+    except IndexError:
+        raise IndexError("Template for \"%s\" has unordered "
+                         "positional arguments: \"%s\"" % (item, pattern))
+
+    if not os.path.isdir(path):
+        return
+
+    for dirname in os.listdir(path):
+        if not os.path.isdir(os.path.join(path, dirname)):
+            continue
+
+        yield dirname
