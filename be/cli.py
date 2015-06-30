@@ -80,6 +80,26 @@ main.help = main.help.format(version)
 def in_(ctx, topics, yes, as_, enter):
     """Set the current topics to `topics`
 
+    Environment:
+        BE_PROJECT: First topic
+        BE_CWD: Current `be` working directory
+        BE_TOPICS: Arguments to `in`
+        BE_DEVELOPMENTDIR: Absolute path to current development directory
+        BE_PROJECTROOT: Absolute path to current project
+        BE_PROJECTSROOT: Absolute path to where projects are located
+        BE_ACTIVE: 0 or 1, indicates an active be environment
+        BE_USER: Current user, overridden with `--as`
+        BE_SCRIPT: User-supplied shell script
+        BE_PYTHON: User-supplied python script
+        BE_ENTER: 0 or 1 depending on whether the topic was entered
+        BE_GITHUB_API_TOKEN: Optional GitHub API token
+        BE_ENVIRONMENT: Space-separated list of user-added
+            environment variables
+        BE_TEMPDIR: Directory in which temporary files are stored
+        BE_PRESETSDIR: Directory in which presets are searched
+        BE_ALIASDIR: Directory in which aliases are written
+        BE_BINDING: Binding between template and item in inventory
+
     \b
     Usage:
         $ be in project topics
@@ -130,7 +150,8 @@ def in_(ctx, topics, yes, as_, enter):
         "BE_TEMPDIR": "",
         "BE_PRESETSDIR": "",
         "BE_GITHUB_API_TOKEN": "",
-        "BE_ENVIRONMENT": ""
+        "BE_ENVIRONMENT": "",
+        "BE_BINDING": ""
     }
     environment.update(os.environ)
 
@@ -147,14 +168,32 @@ def in_(ctx, topics, yes, as_, enter):
     if topic_syntax & lib.FIXED and not template_syntax & lib.FIXED:
         topics[:] = " ".join(topics[0].split("/"))
 
+    try:
+        key = be.get("templates", {}).get("key") or "{1}"
+        item = _format.item_from_topics(key, topics)
+        binding = _format.binding_from_item(inventory, item)
+        environment["BE_BINDING"] = binding
+    except IndexError as exc:
+        lib.echo("At least %s topics are required" % str(exc))
+        sys.exit(lib.USER_ERROR)
+
     # Finally, determine a development directory
     # based on the template-, not topic-syntax.
     if template_syntax & lib.POSITIONAL:
         development_dir = _format.pos_development_directory(
-            be, templates, inventory, environment, topics, as_)
+            be,
+            templates,
+            inventory,
+            environment,
+            topics,
+            as_,
+            item)
     else:  # FIXED topic_syntax
         development_dir = _format.fixed_development_directory(
-            templates, inventory, topics, as_)
+            templates,
+            inventory,
+            topics,
+            as_)
 
     environment["BE_DEVELOPMENTDIR"] = development_dir
 

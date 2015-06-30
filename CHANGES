@@ -4,6 +4,7 @@ be Changelog
 Version 0.2.3
 -------------
 
+- Added reference to binding between template and item in inventory
 - Added be.yaml:environment positional and environment expansion
 - Deprecated be.yaml:redirect of positional arguments
 - BACKWARDS INCOMPATIBLE BE_TOPIC renamed BE_TOPICS

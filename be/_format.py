@@ -4,17 +4,21 @@ import sys
 
 import lib
 
+self = sys.modules[__name__]
+self.bindings = {}
 
-def pos_development_directory(settings,
+
+def pos_development_directory(be,
                               templates,
                               inventory,
                               environment,
                               topics,
-                              user):
+                              user,
+                              item):
     """Return absolute path to development directory
 
     Arguments:
-        settings (dict): be.yaml
+        be (dict): be.yaml
         templates (dict): templates.yaml
         inventory (dict): inventory.yaml
         topics (list): Arguments to `in`
@@ -22,15 +26,8 @@ def pos_development_directory(settings,
 
     """
 
-    try:
-        key = settings.get("templates", {}).get("key") or "{1}"
-        template_binding = binding_from_topics(key, topics)
-    except IndexError as exc:
-            lib.echo("At least %s topics are required" % str(exc))
-            sys.exit(lib.USER_ERROR)
-
     replacement_fields = replacement_fields_from_environment(environment)
-    template = template_from_item(inventory, template_binding)
+    template = binding_from_item(inventory, item)
     pattern = pattern_from_template(templates, template)
 
     positional_arguments = find_positional_arguments(pattern)
@@ -38,7 +35,7 @@ def pos_development_directory(settings,
     highest_available = len(topics) - 1
     if highest_available < highest_argument:
         lib.echo("Template for \"%s\" requires at least %i arguments" % (
-            template_binding, highest_argument + 1))
+            item, highest_argument + 1))
         sys.exit(lib.USER_ERROR)
 
     try:
@@ -65,7 +62,7 @@ def fixed_development_directory(templates, inventory, topics, user):
 
     project, item, task = topics[0].split("/")
 
-    template = template_from_item(inventory, item)
+    template = binding_from_item(inventory, item)
     pattern = pattern_from_template(templates, template)
 
     if find_positional_arguments(pattern):
@@ -108,7 +105,7 @@ def replacement_fields_from_environment(environment):
                 for k in environment if k.startswith("BE_"))
 
 
-def binding_from_topics(key, topics):
+def item_from_topics(key, topics):
     """Get binding from `topics` via `key`
 
     Example:
@@ -189,8 +186,14 @@ def items_from_inventory(inventory):
     return items_
 
 
-def template_from_item(inventory, item):
-    """Return template name for `item`
+def binding_from_item(inventory, item):
+    """Return binding for `item`
+
+    Example:
+        asset:
+        - myasset
+
+        The binding is "asset"
 
     Arguments:
         project: Name of project
@@ -198,18 +201,22 @@ def template_from_item(inventory, item):
 
     """
 
+    if item in self.bindings:
+        return self.bindings[item]
+
     templates = dict()
-    for template, items_ in inventory.iteritems():
+    for binding, items_ in inventory.iteritems():
         for item_ in items_:
             if isinstance(item_, dict):
                 item_ = item_.keys()[0]
             item_ = str(item_)  # Key may be number
             if item_ in templates:
-                print("Warning: Duplicate item found "
-                      "for \"%s: %s\"" % (template, item_))
-            templates[item_] = template
+                lib.echo("Warning: Duplicate item found "
+                         "for \"%s: %s\"" % (binding, item_))
+            templates[item_] = binding
 
     try:
+        self.bindings[item] = templates[item]
         return templates[item]
 
     except KeyError:
