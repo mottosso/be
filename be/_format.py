@@ -23,13 +23,14 @@ def pos_development_directory(settings,
     """
 
     try:
-        template_key = template_key_from_args(settings, topics)
+        key = settings.get("templates", {}).get("key") or "{1}"
+        template_binding = binding_from_topics(key, topics)
     except IndexError as exc:
             lib.echo("At least %s topics are required" % str(exc))
             sys.exit(lib.USER_ERROR)
 
     replacement_fields = replacement_fields_from_environment(environment)
-    template = template_from_item(inventory, template_key)
+    template = template_from_item(inventory, template_binding)
     pattern = pattern_from_template(templates, template)
 
     positional_arguments = find_positional_arguments(pattern)
@@ -37,7 +38,7 @@ def pos_development_directory(settings,
     highest_available = len(topics) - 1
     if highest_available < highest_argument:
         lib.echo("Template for \"%s\" requires at least %i arguments" % (
-            template_key, highest_argument + 1))
+            template_binding, highest_argument + 1))
         sys.exit(lib.USER_ERROR)
 
     try:
@@ -59,6 +60,8 @@ def fixed_development_directory(templates, inventory, topics, user):
         task (str): Family of item
 
     """
+
+    lib.echo("Fixed syntax has been deprecated, see positional syntax")
 
     project, item, task = topics[0].split("/")
 
@@ -105,24 +108,26 @@ def replacement_fields_from_environment(environment):
                 for k in environment if k.startswith("BE_"))
 
 
-def template_key_from_args(settings, topics):
-    """Map key from settings to key in topic
+def binding_from_topics(key, topics):
+    """Get binding from `topics` via `key`
 
     Example:
-        key: {0} -> be in hello world == hello
-        key: {1} -> be in hello world == world
+        {0} == hello --> be in hello world
+        {1} == world --> be in hello world
+
+    Returns:
+        Single topic matching the key
 
     Raises:
-        IndexError (int): With number of required arguments
-            for the project
+        IndexError (int): With number of required
+            arguments for the key
 
     """
 
-    key = settings.get("templates", {}).get("key", "{1}")
     if re.match("{\d+}", key):
         pos = int(key.strip("{}"))
         try:
-            template_key = topics[pos]
+            binding = topics[pos]
         except IndexError:
             raise IndexError(pos + 1)
 
@@ -130,7 +135,7 @@ def template_key_from_args(settings, topics):
         lib.echo("be.yaml template key not recognised")
         sys.exit(lib.PROJECT_ERROR)
 
-    return template_key
+    return binding
 
 
 def find_positional_arguments(pattern):
@@ -214,3 +219,90 @@ def template_from_item(inventory, item):
             for item_ in sorted(templates, key=lambda a: (templates[a], a)):
                 lib.echo("- %s (%s)" % (item_, templates[item_]))
         sys.exit(1)
+
+
+def parse_environment(fields, environment, topics):
+    """Resolve the be.yaml environment key
+
+    Features:
+        - Lists, e.g. ["/path1", "/path2"]
+        - Environment variable references, via $
+        - Replacement field references, e.g. {key}
+        - Topic eferences, e.g. {1}
+
+    """
+
+    fields = _resolve_environment_lists(fields)
+    fields = _resolve_environment_references(fields, environment)
+    fields = _resolve_environment_fields(fields, environment, topics)
+    return fields
+
+
+def _resolve_environment_lists(environment):
+    """Concatenate environment lists"""
+    for key, value in environment.copy().iteritems():
+        if isinstance(value, list):
+            environment[key] = os.pathsep.join(value)
+    return environment
+
+
+def _resolve_environment_references(fields, environment):
+    """Resolve $ occurences by expansion
+
+    Given a dictionary {"PATH": "$PATH;somevalue;{0}"}
+    Return {"PATH": "value_of_PATH;somevalue;myproject"},
+    given that the first topic - {0} - is "myproject"
+
+    Arguments:
+        fields (dict): Environment from be.yaml
+        environment (dict): Source environment
+
+    """
+
+    # Resolve references
+    def repl(match):
+        key = pattern[match.start():match.end()].strip("$")
+        if key not in environment:
+            sys.stderr.write("ERROR: Unavailable "
+                             "fields variable: \"%s\"" % key)
+            sys.exit(lib.USER_ERROR)
+        return environment[key]
+
+    pat = re.compile("\$\w+", re.IGNORECASE)
+    for key, pattern in fields.copy().iteritems():
+        fields[key] = pat.sub(repl, pattern)
+
+    return fields
+
+
+def _resolve_environment_fields(fields, environment, topics):
+    """Resolve {} occurences
+
+    Supports both positional and BE_-prefixed variables.
+
+    Example:
+        BE_MYKEY -> "{myvalue}" from `BE_MYKEY`
+        {1} -> "{mytask}" from `be in myproject mytask`
+
+    Returns:
+        Dictionary of resolved fields
+
+    """
+
+    source_dict = replacement_fields_from_environment(environment)
+    source_dict.update(dict((str(topics.index(topic)), topic)
+                            for topic in topics))
+
+    def repl(match):
+        key = pattern[match.start():match.end()].strip("{}")
+        try:
+            return source_dict[key]
+        except KeyError:
+            lib.echo("PROJECT ERROR: Unavailable reference \"%s\" "
+                     "in be.yaml" % key)
+            sys.exit(lib.PROJECT_ERROR)
+
+    for key, pattern in fields.copy().iteritems():
+        fields[key] = re.sub("{[\d\w]+}", repl, pattern)
+
+    return fields

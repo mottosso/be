@@ -1,8 +1,15 @@
 be Changelog
 =================
 
+Version 0.2.3
+-------------
+
+- Added be.yaml:environment positional and environment expansion
+- Deprecated be.yaml:redirect of positional arguments
+- BACKWARDS INCOMPATIBLE BE_TOPIC renamed BE_TOPICS
+
 Version 0.2.2
-----------------
+-------------
 
 - Always including default configuration files
 - Custom environment variables can now include auxiliary `be` variables:

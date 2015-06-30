@@ -54,13 +54,7 @@ def cwd():
     return os.getcwd().replace("\\", "/")
 
 
-def parse_environment(environment, existing):
-    environment = _join_environment(environment)
-    environment = _resolve_environment(environment, existing)
-    return environment
-
-
-def load_settings(project):
+def load_be(project):
     return load(project, "be", optional=True)
 
 
@@ -84,10 +78,6 @@ def load_inventory(project):
     """
 
     return load(project, "inventory")
-
-
-def load_be(project):
-    return load(project, "be")
 
 
 def load(project, fname, optional=False, root=None):
@@ -365,45 +355,6 @@ def copy_preset(preset_dir, project_dir):
         else:
             dest = os.path.join(project_dir, fname)
             shutil.copytree(src, dest)
-
-
-def _join_environment(environment):
-    """Concatenate lists"""
-    for key, value in environment.copy().iteritems():
-        if isinstance(value, list):
-            environment[key] = os.pathsep.join(value)
-    return environment
-
-
-def _parse_environment_pathsep(environment):
-    """Replace Windows with Linux path-separators on Linux, and vice versa"""
-    for key, value in environment.copy().iteritems():
-        right, wrong = ";:" if os.name == "nt" else ":;"
-        environment[key] = value.replace(wrong, right)
-    return environment
-
-
-def _resolve_environment(environment, existing):
-    """Resolve $ occurences by expansion
-
-    Given a dictionary {"PATH": "$PATH;somevalue"}
-    Return {"PATH": "value_of_PATH;somevalue"}
-
-    """
-
-    def repl(match):
-        key = pattern[match.start():match.end()].strip("$")
-        if key not in existing:
-            sys.stderr.write("ERROR: Unavailable "
-                             "environment variable: \"%s\"" % key)
-            sys.exit(lib.USER_ERROR)
-        return existing[key]
-
-    pat = re.compile("\$\w+", re.IGNORECASE)
-    for key, pattern in environment.copy().iteritems():
-        environment[key] = pat.sub(repl, pattern)
-
-    return environment
 
 
 def _resolve_references(templates):

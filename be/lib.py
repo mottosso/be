@@ -1,14 +1,57 @@
+import re
 import os
 import sys
 import random
 
 import _data
+import _extern
 
 NORMAL = 0
 PROGRAM_ERROR = 1
 USER_ERROR = 2
 PROJECT_ERROR = 3
 TEMPLATE_ERROR = 4
+
+# Topic syntaxes
+FIXED = 1 << 0
+POSITIONAL = 1 << 1
+
+
+def map_redirect(redirect, topics, environment):
+    """Map environment variables from `remap` key to their values
+
+    Arguments:
+        redirect (dict): Source/destination pairs, e.g. {BE_ACTIVE: ACTIVE}
+        topics (tuple): Topics from which to sample, e.g. (project, item, task)
+        environment (dict): Environmnent from which to sample
+
+    """
+
+    for map_source, map_dest in redirect.items():
+        if re.match("{\d+}", map_source):
+            topics_index = int(map_source.strip("{}"))
+            topics_value = topics[topics_index]
+            environment[map_dest] = topics_value
+            continue
+
+        environment[map_dest] = environment[map_source]
+
+
+def write_aliases(aliases, path):
+    """Write user-supplied aliases
+
+    Arguments:
+        aliases (list): Supplied aliases
+        path (str): Absolute path to where aliases are to be written
+
+    """
+
+    # Default "home" alias
+    home_alias = ("cd %BE_DEVELOPMENTDIR%"
+                  if os.name == "nt" else "cd $BE_DEVELOPMENTDIR")
+    aliases["home"] = home_alias
+
+    return _extern.write_aliases(aliases, path)
 
 
 def random_name():

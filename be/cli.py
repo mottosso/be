@@ -31,9 +31,6 @@ self = type("Scope", (object,), {})()
 self.isactive = lambda: "BE_ACTIVE" in os.environ
 self.verbose = False
 
-FIXED = 1 << 0
-POSITIONAL = 1 << 1
-
 
 @click.group()
 @click.option("-v", "--verbose", is_flag=True)
@@ -97,10 +94,10 @@ def in_(ctx, topics, yes, as_, enter):
 
     # Determine topic syntax
     if len(topics[0].split("/")) == 3:
-        topic_syntax = FIXED
+        topic_syntax = lib.FIXED
         project = topics[0].split("/")[0]
     else:
-        topic_syntax = POSITIONAL
+        topic_syntax = lib.POSITIONAL
         project = topics[0]
 
     project_dir = _format.project_dir(_extern.cwd(), project)
@@ -112,7 +109,7 @@ def in_(ctx, topics, yes, as_, enter):
 
     # Boot up
     templates = _extern.load_templates(project)
-    settings = _extern.load_settings(project)
+    be = _extern.load_be(project)
     inventory = _extern.load_inventory(project)
     environment = {
         "BE_PROJECT": project,
@@ -120,7 +117,7 @@ def in_(ctx, topics, yes, as_, enter):
         "BE_CWD": _extern.cwd(),
         "BE_CD": "",
         "BE_ROOT": "",
-        "BE_TOPIC": " ".join(topics),  # e.g. shot1 anim
+        "BE_TOPICS": " ".join(topics),  # e.g. shot1 anim
         "BE_DEVELOPMENTDIR": "",
         "BE_PROJECTROOT": os.path.join(
             _extern.cwd(), project).replace("\\", "/"),
@@ -132,7 +129,8 @@ def in_(ctx, topics, yes, as_, enter):
         "BE_ENTER": "1" if enter else "",
         "BE_TEMPDIR": "",
         "BE_PRESETSDIR": "",
-        "BE_GITHUB_API_TOKEN": ""
+        "BE_GITHUB_API_TOKEN": "",
+        "BE_ENVIRONMENT": ""
     }
     environment.update(os.environ)
 
@@ -140,26 +138,27 @@ def in_(ctx, topics, yes, as_, enter):
     # In cases where the topic is entered in a way that
     # differs from the template, remap topic to template.
     if any(re.findall("{\d+}", pattern) for pattern in templates.values()):
-        template_syntax = POSITIONAL
+        template_syntax = lib.POSITIONAL
     else:
-        template_syntax = FIXED
+        template_syntax = lib.FIXED
 
-    if topic_syntax & POSITIONAL and not template_syntax & POSITIONAL:
+    if topic_syntax & lib.POSITIONAL and not template_syntax & lib.POSITIONAL:
         topics = ["/".join(topics)]
-    if topic_syntax & FIXED and not template_syntax & FIXED:
+    if topic_syntax & lib.FIXED and not template_syntax & lib.FIXED:
         topics[:] = " ".join(topics[0].split("/"))
 
     # Finally, determine a development directory
     # based on the template-, not topic-syntax.
-    if template_syntax & POSITIONAL:
+    if template_syntax & lib.POSITIONAL:
         development_dir = _format.pos_development_directory(
-            settings, templates, inventory, environment, topics, as_)
+            be, templates, inventory, environment, topics, as_)
     else:  # FIXED topic_syntax
         development_dir = _format.fixed_development_directory(
             templates, inventory, topics, as_)
 
     environment["BE_DEVELOPMENTDIR"] = development_dir
 
+    # Determine which subshell to launch
     dirname = os.path.dirname(__file__)
     if os.name == "nt":
         shell = os.path.join(dirname, "_shell.bat")
@@ -171,6 +170,7 @@ def in_(ctx, topics, yes, as_, enter):
                else os.environ["BE_TEMPDIR"])
     environment["BE_TEMPDIR"] = tempdir
 
+    # Should it be entered?
     if enter and not os.path.exists(development_dir):
         create = False
         if yes:
@@ -186,12 +186,12 @@ def in_(ctx, topics, yes, as_, enter):
             sys.exit(lib.NORMAL)
 
     # Parse be.yaml
-    if "script" in settings:
+    if "script" in be:
         environment["BE_SCRIPT"] = _extern.write_script(
-            settings["script"], tempdir)
+            be["script"], tempdir)
 
-    if "python" in settings:
-        script = "\n".join(settings["python"])
+    if "python" in be:
+        script = "\n".join(be["python"])
         environment["BE_PYTHON"] = script
         try:
             exec script in {"__name__": __name__}
@@ -202,44 +202,36 @@ def in_(ctx, topics, yes, as_, enter):
     assert all(isinstance(v, str) for v in environment.values()), invalids
 
     # Create aliases
-    cd_alias = ("cd %BE_DEVELOPMENTDIR%"
-                if os.name == "nt" else "cd $BE_DEVELOPMENTDIR")
-
-    aliases = settings.get("alias", {})
-    aliases["home"] = cd_alias
-    aliases_dir = _extern.write_aliases(aliases, tempdir)
+    aliases_dir = lib.write_aliases(
+        be.get("alias", {}), tempdir)
 
     environment["PATH"] = (aliases_dir
                            + os.pathsep
                            + environment.get("PATH", ""))
     environment["BE_ALIASDIR"] = aliases_dir
 
-    for map_source, map_dest in settings.get("redirect", {}).items():
-        if re.match("{\d+}", map_source):
-            topics_index = int(map_source.strip("{}"))
-            topics_value = topics[topics_index]
-            environment[map_dest] = topics_value
-            continue
-
-        environment[map_dest] = environment[map_source]
-
-    if "BE_TESTING" in os.environ:
-        os.chdir(development_dir)
-        os.environ.update(environment)
-        return
+    # Parse redirects
+    lib.map_redirect(be.get("redirect", {}), topics, environment)
 
     # Override inherited environment
     # with that coming from be.yaml.
-    if "environment" in settings:
-        environment.update(_extern.parse_environment(
-            settings["environment"],
-            existing=environment))
+    if "environment" in be:
+        parsed = _format.parse_environment(
+            fields=be["environment"],
+            environment=environment,
+            topics=topics)
+        environment["BE_ENVIRONMENT"] = " ".join(parsed.keys())
+        environment.update(parsed)
 
-    try:
-        sys.exit(subprocess.call(shell, shell=True, env=environment))
-    finally:
-        import shutil
-        shutil.rmtree(tempdir)
+    if "BE_TESTING" in environment:
+        os.chdir(development_dir)
+        os.environ.update(environment)
+    else:
+        try:
+            sys.exit(subprocess.call(shell, shell=True, env=environment))
+        finally:
+            import shutil
+            shutil.rmtree(tempdir)
 
 
 @main.command()
@@ -492,13 +484,16 @@ def preset_find(query):
 def dump():
     """Print current environment
 
+    Environment is outputted in a YAML-friendly format
+
     \b
     Usage:
         $ be dump
-        BE_PROJECT=spiderman
-        BE_ITEM=peter
-        BE_TYPE=model
-        ...
+        Prefixed:
+        - BE_PROJECT=spiderman
+        - BE_ITEM=peter
+        - BE_TYPE=model
+        - ...
 
     """
 
@@ -506,17 +501,32 @@ def dump():
         lib.echo("ERROR: Enter a project first")
         sys.exit(lib.USER_ERROR)
 
-    for key in sorted(os.environ):
-        if not key.startswith("BE_"):
-            continue
-        lib.echo("%s=%s" % (key, os.environ.get(key)))
+    # Print custom environment variables first
+    custom = sorted(os.environ.get("BE_ENVIRONMENT", "").split())
+    if custom:
+        lib.echo("Custom:")
+        for key in custom:
+            lib.echo("- %s=%s" % (key, os.environ.get(key)))
 
+    # Then print redirected variables
     project = os.environ["BE_PROJECT"]
     root = os.environ["BE_PROJECTSROOT"]
-    settings = _extern.load(project, "be", optional=True, root=root)
-    environ = settings.get("redirect", {}).items()
-    for map_source, map_dest in sorted(environ):
-        lib.echo("%s=%s" % (map_dest, os.environ.get(map_dest)))
+    be = _extern.load(project, "be", optional=True, root=root)
+    redirect = be.get("redirect", {}).items()
+    if redirect:
+        lib.echo("\nRedirect:")
+        for map_source, map_dest in sorted(redirect):
+            lib.echo("- %s=%s" % (map_dest, os.environ.get(map_dest)))
+
+    # And then everything else
+    prefixed = dict((k, v) for k, v in os.environ.iteritems()
+                    if k.startswith("BE_"))
+    if prefixed:
+        lib.echo("\nPrefixed:")
+        for key in sorted(prefixed):
+            if not key.startswith("BE_"):
+                continue
+            lib.echo("- %s=%s" % (key, os.environ.get(key)))
 
     sys.exit(lib.NORMAL)
 
@@ -529,7 +539,7 @@ def what():
         lib.echo("No topic")
         sys.exit(lib.USER_ERROR)
 
-    lib.echo(os.environ.get("BE_TOPIC", "This is a bug"))
+    lib.echo(os.environ.get("BE_TOPICS", "This is a bug"))
 
 
 if __name__ == '__main__':
