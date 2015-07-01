@@ -37,16 +37,6 @@ setup(
     },
     entry_points={
         "console_scripts": ["be = be.cli:main"]
-    }
+    },
+    install_requires=["psutil==2.2.1"]
 )
-
-if os.name != "nt":
-    import os
-    if "BE_BITSET" not in os.environ:
-        import subprocess
-        shell = os.path.dirname(__file__)
-        shell = os.path.join(shell, "be", "_shell.sh")
-        print "Setting executable bit on %s" % shell
-        if subprocess.call(["chmod", "+x", shell]) != 0:
-            print "WARNING: Could not set executable bit on subshell"
-        os.environ["BE_BITSET"] = "1"
