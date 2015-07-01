@@ -314,7 +314,6 @@ def pull_preset(repo, preset_dir):
                          "username/repo or gist/id (not %s)" % repo)
 
     is_preset, source = repo_is_preset(repo)
-    username, repository = repo.split("/")
 
     if not is_preset:
         lib.echo("ERROR: %s does not appear to be a preset, "
@@ -326,7 +325,7 @@ def pull_preset(repo, preset_dir):
     else:
         url = "https://api.github.com/repos/%s/tarball"
 
-    r = get(url % repository, stream=True)
+    r = get(url % repo, stream=True)
 
     tempdir = tempfile.mkdtemp()
     temppath = "/".join([tempdir, repo.rsplit("/", 1)[-1] + ".tar.gz"])
