@@ -380,8 +380,14 @@ def github_presets():
     """Return remote presets hosted on GitHub"""
     addr = ("https://raw.githubusercontent.com"
             "/mottosso/be-presets/master/presets.json")
+    response = get(addr)
+    if response.status_code == 404:
+        lib.echo("Could not connect with preset database")
+        sys.exit(lib.PROGRAM_ERROR)
+
+    print response.status_code
     return dict((package["name"], package["repository"])
-                for package in get(addr).json().get("presets"))
+                for package in response.json().get("presets"))
 
 
 def copy_preset(preset_dir, project_dir):
