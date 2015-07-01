@@ -190,7 +190,7 @@ def remove_preset(preset):
 def get(path, **kwargs):
     """requests.get wrapper"""
     token = os.environ.get(BE_GITHUB_API_TOKEN)
-    if token is not None:
+    if token:
         kwargs["headers"] = {
             "Authorization": "token %s" % token
         }
