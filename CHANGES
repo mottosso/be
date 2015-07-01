@@ -1,6 +1,13 @@
 be Changelog
 =================
 
+Version 0.3.0
+-------------
+
+- Added support for GitHub Gist presets
+- Added support for bash tab completion
+- Added deep support for be ls (#27)
+
 Version 0.2.4
 -------------
 
