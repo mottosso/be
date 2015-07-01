@@ -136,7 +136,8 @@ def in_(ctx, topics, yes, as_, enter):
     context.update({
         "BE_PROJECT": project,
         "BE_USER": str(as_),
-        "BE_ENTER": "1" if enter else ""
+        "BE_ENTER": "1" if enter else "",
+        "BE_TOPICS": " ".join(topics)
     })
 
     # Remap topic syntax, for backwards compatibility
@@ -159,6 +160,15 @@ def in_(ctx, topics, yes, as_, enter):
         context["BE_BINDING"] = binding
     except IndexError as exc:
         lib.echo("At least %s topics are required" % str(exc))
+        sys.exit(lib.USER_ERROR)
+
+    except KeyError as exc:
+        lib.echo("\"%s\" not found" % item)
+        if exc.bindings:
+            lib.echo("\nAvailable:")
+            for item_ in sorted(exc.bindings,
+                                key=lambda a: (exc.bindings[a], a)):
+                lib.echo("- %s (%s)" % (item_, exc.bindings[item_]))
         sys.exit(lib.USER_ERROR)
 
     # Finally, determine a development directory
@@ -189,13 +199,6 @@ def in_(ctx, topics, yes, as_, enter):
             as_)
 
     context["BE_DEVELOPMENTDIR"] = development_dir
-
-    # Determine which subshell to launch
-    dirname = os.path.dirname(__file__)
-    if os.name == "nt":
-        shell = os.path.join(dirname, "_shell.bat")
-    else:
-        shell = os.path.join(dirname, "_shell.sh")
 
     tempdir = (tempfile.mkdtemp()
                if "BE_TEMPDIR" not in os.environ
@@ -260,8 +263,14 @@ def in_(ctx, topics, yes, as_, enter):
         os.chdir(development_dir)
         os.environ.update(context)
     else:
+        parent = lib.parent()
+        cmd = lib.cmd(parent)
+
+        # Store reference to calling shell
+        context["BE_SHELL"] = parent
+
         try:
-            sys.exit(subprocess.call(shell, shell=True, env=context))
+            sys.exit(subprocess.call(cmd, env=context))
         finally:
             import shutil
             shutil.rmtree(tempdir)
@@ -305,8 +314,12 @@ def new(preset, name, silent, update):
         lib.echo("\"%s\" already exists" % name)
         sys.exit(lib.USER_ERROR)
 
+    username, preset = ([None] + preset.split("/", 1))[-2:]
     presets_dir = _extern.presets_dir()
     preset_dir = os.path.join(presets_dir, preset)
+
+    # Is the preset given referring to a repository directly?
+    relative = False if username else True
 
     try:
         if not update and preset in _extern.local_presets():
@@ -316,7 +329,7 @@ def new(preset, name, silent, update):
             lib.echo("Finding preset for \"%s\".. " % preset, silent)
             time.sleep(1 if silent else 0)
 
-            if "/" not in preset:
+            if relative:
                 # Preset is relative, look it up from the Hub
                 presets = _extern.github_presets()
 
@@ -329,10 +342,10 @@ def new(preset, name, silent, update):
 
             else:
                 # Absolute paths are pulled directly
-                repository = preset
+                repository = username + "/" + preset
 
-            repository = _extern.fetch_release(repository)
             lib.echo("Pulling %s.. " % repository, silent)
+            repository = _extern.fetch_release(repository)
 
             # Remove existing preset
             if preset in _extern.local_presets():
@@ -341,12 +354,17 @@ def new(preset, name, silent, update):
             try:
                 _extern.pull_preset(repository, preset_dir)
             except IOError as e:
-                lib.echo("ERROR: Sorry, something went wrong. "
-                         "Use --verbose for more")
+                lib.echo("ERROR: Sorry, something went wrong.\n"
+                         "Use be --verbose for more")
                 lib.echo(e)
                 sys.exit(lib.USER_ERROR)
 
-            _extern.copy_preset(preset_dir, project_dir)
+            try:
+                _extern.copy_preset(preset_dir, project_dir)
+            finally:
+                # Absolute paths are not stored locally
+                if not relative:
+                    _extern.remove_preset(preset)
 
     except IOError as exc:
         if self.verbose:
@@ -413,27 +431,89 @@ def update(preset, clean):
 
 @main.command()
 @click.argument("topics", nargs=-1, required=False)
-def tab(topics):
+@click.argument("complete", type=bool)
+def tab(topics, complete):
+    """Utility sub-command for tabcompletion
+
+    This command is meant to be called by a tab completion
+    function and is given a the currently entered topics,
+    along with a boolean indicating whether or not the
+    last entered argument is complete.
+
+    """
 
     # Discard `be tab`
-    topics = list(topics)[2:-1]
+    topics = list(topics)[2:]
+
+    # When given an incomplete argument,
+    # the argument is *sometimes* returned twice (?)
+    # .. note:: Seen in Git Bash on Windows
+    # $ be in giant [TAB]
+    # -> ['giant']
+    # $ be in gi[TAB]
+    # -> ['gi', 'gi']
+    if len(topics) > 1 and topics[-1] == topics[-2]:
+        topics.pop()
 
     # Return projects
     if len(topics) == 0:
-        sys.stdout.write(" ".join(lib.list_projects()))
+        projects = lib.list_projects()
+        sys.stdout.write(" ".join(projects))
 
     # Return inventory
     elif len(topics) == 1:
         project = topics[0]
-        items = [x for x, y in lib.list_inventory(project)]
-        sys.stdout.write(" ".join(items))
+        projects = lib.list_projects()
 
-    # Return contents of template
+        # Check to see if the project name is complete
+        if not complete:
+            projects = [i for i in projects if i.startswith(project)]
+            sys.stdout.write(" ".join(projects))
+        else:
+            # Return inventory
+            inventory = lib.list_inventory(project)
+            items = [i for i, b in inventory]
+            sys.stdout.write(" ".join(items))
+
     else:
-        try:
-            sys.stdout.write(" ".join(lib.list_pattern(topics)))
-        except IndexError:
-            sys.exit(lib.USER_ERROR)
+        project, item = topics[:2]
+
+        # Check to see if the inventory name is complete
+        if len(topics) == 2 and not complete:
+            inventory = lib.list_inventory(project)
+            items = [i for i, b in inventory]
+            items = [i for i in items if i.startswith(item)]
+            sys.stdout.write(" ".join(items))
+
+        else:
+            try:
+                item = topics[-1]
+                items = lib.list_pattern(topics)
+                if not complete:
+                    items = lib.list_pattern(topics[:-1])
+                    items = [i for i in items if i.startswith(item)]
+                    sys.stdout.write(" ".join(items) + " ")
+                else:
+                    sys.stdout.write(" ".join(items) + " ")
+
+            except IndexError:
+                sys.exit(lib.NORMAL)
+
+
+@main.command()
+def activate():
+    parent = lib.parent()
+    cmd = lib.cmd(parent)
+
+    # Store reference to calling shell
+    context = lib.context("")
+    context["BE_SHELL"] = parent
+    context["BASH_ENV"] = os.path.join(
+        os.path.dirname(__file__), "_autocomplete.sh")
+
+    context.pop("BE_ACTIVE")
+
+    sys.exit(subprocess.call(cmd, shell=True, env=context))
 
 
 @main.command()

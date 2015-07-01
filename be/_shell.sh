@@ -1,25 +1,15 @@
+# DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+# export BASH_ENV=$DIR/_autocomplete.sh
+
 # be subshell, do not call directly.
 if ! [ "$BE_ENTER" = "" ]; then cd $BE_DEVELOPMENTDIR; fi
 
 # Run script
 if ! [ "$BE_SCRIPT" = "" ];then . $BE_SCRIPT;fi
 
-# Tab completion
-_be () {
-  COMPREPLY=();
+# if [ "$BE_TABCOMPLETION" = "1" ]; then
+#     # Run whichever shell called us
+#     "$BE_SHELL"
+# fi
 
-  local cur=${COMP_WORDS[COMP_CWORD]}
-  
-  if [ ${COMP_CWORD} -ge 2 ]; then
-    if [ ${COMP_WORDS[1]} == "in" ]; then
-      local opts=$(be tab $COMP_LINE)
-      COMPREPLY=($(compgen -W "${opts}" $cur))
-    fi
-  fi
-
-  return 0
-}
-
-complete -F _be -o default be
-
-bash
+"$BE_SHELL"

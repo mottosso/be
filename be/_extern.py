@@ -127,8 +127,12 @@ def write_aliases(aliases, tempdir):
 
     """
 
-    home_alias = ("cd %BE_DEVELOPMENTDIR%"
-                  if os.name == "nt" else "cd $BE_DEVELOPMENTDIR")
+    environment = lib.environment()
+    if environment == "unix":
+        home_alias = "cd $BE_DEVELOPMENTDIR"
+    else:
+        home_alias = "cd %BE_DEVELOPMENTDIR%"
+
     aliases["home"] = home_alias
 
     tempdir = os.path.join(tempdir, "aliases")
@@ -137,13 +141,13 @@ def write_aliases(aliases, tempdir):
     for alias, cmd in aliases.iteritems():
         path = os.path.join(tempdir, alias)
 
-        if os.name == "nt":
+        if environment == "windows":
             path += ".bat"
 
         with open(path, "w") as f:
             f.write(cmd)
 
-        if os.name != "nt":
+        if environment == "unix":
             # Make executable on unix systems
             st = os.stat(path)
             os.chmod(path, st.st_mode | stat.S_IXUSR
@@ -212,7 +216,7 @@ def repo_is_preset(repo):
     """Evaluate whether repo is a be package
 
     Arguments:
-        repo (dict): GitHub response with contents of repo
+        repo (str): username/repo pair, e.g. mottosso/be-ad
 
     """
 
@@ -235,6 +239,67 @@ def repo_is_preset(repo):
     return True
 
 
+def gist_is_preset(gist):
+    """Evaluate whether gist is a be package
+
+    Arguments:
+        gist (str): gist/gistid pair e.g. gist/2bb4651a05af85711cde
+
+    """
+
+    _, gistid = gist.split("/")
+
+    gist_template = "https://api.github.com/gists/{}"
+    gist_path = gist_template.format(gistid)
+
+    response = get(gist_path)
+    if response.status_code == 404:
+        return False
+
+    try:
+        data = response.json()
+    except:
+        return False
+
+    files = data.get("files", {})
+    package = files.get("package.json", {})
+
+    try:
+        content = json.loads(package.get("content", ""))
+    except:
+        return False
+
+    if content.get("type") != "bepreset":
+        return False
+
+    return True
+
+
+def gist_author(gist):
+    """Return author of gist
+
+    Arguments:
+        gist (str): gist/gistid pair, e.g. gist/
+
+    """
+
+    _, gistid = gist.split("/")
+
+    gist_template = "https://api.github.com/gists/{}"
+    gist_path = gist_template.format(gistid)
+
+    response = get(gist_path)
+    if response.status_code == 404:
+        return None
+
+    try:
+        data = response.json()
+    except:
+        return None
+
+    return data.get("owner", {}).get("login", None)
+
+
 def fetch_release(repo):
     """Return latest release from `repo`
 
@@ -246,36 +311,38 @@ def fetch_release(repo):
     return repo
 
 
-def download_file(url):
-    local_filename = url.split('/')[-1]
-    r = requests.get(url, stream=True)
-    with open(local_filename, 'wb') as f:
-        for chunk in r.iter_content(chunk_size=1024):
-            if chunk:  # filter out keep-alive new chunks
-                f.write(chunk)
-                f.flush()
-    return local_filename
-
-
 def pull_preset(repo, preset_dir):
     repo, tag = repo.split(":", 1) + [None]
 
     if not repo.count("/") == 1 or len(repo.split("/")) != 2:
         raise ValueError("Repository syntax is: "
-                         "username/repo (not %s)" % repo)
+                         "username/repo or gist/id (not %s)" % repo)
 
-    if not repo_is_preset(repo):
+    is_gist = False
+    if repo.split("/")[0] == "gist":
+        is_valid = gist_is_preset
+        is_gist = True
+    else:
+        is_valid = repo_is_preset
+
+    if not is_valid(repo):
         lib.echo("ERROR: %s does not appear to be a preset, "
                  "try --verbose for more information." % repo)
         sys.exit(lib.USER_ERROR)
 
-    url = "https://api.github.com/repos/%s/tarball" % repo
+    if is_gist:
+        _, gistid = repo.split("/")
+        author = gist_author(repo)
+        url = "https://gist.github.com/%s/%s/download" % (author, gistid)
+    else:
+        url = "https://api.github.com/repos/%s/tarball" % repo
+
     r = get(url, stream=True)
 
     tempdir = tempfile.mkdtemp()
     temppath = "/".join([tempdir, repo.rsplit("/", 1)[-1] + ".tar.gz"])
     with open(temppath, "wb") as f:
-        for chunk in r.iter_content(chunk_size=1024):
+        for chunk in r.iter_content():
             if not chunk:
                 continue
             f.write(chunk)
