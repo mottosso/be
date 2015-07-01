@@ -201,7 +201,7 @@ def in_(ctx, topics, yes, as_, enter):
     context["BE_DEVELOPMENTDIR"] = development_dir
 
     tempdir = (tempfile.mkdtemp()
-               if "BE_TEMPDIR" not in os.environ
+               if not os.environ.get("BE_TEMPDIR")
                else os.environ["BE_TEMPDIR"])
     context["BE_TEMPDIR"] = tempdir
 
