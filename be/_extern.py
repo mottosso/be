@@ -381,11 +381,11 @@ def github_presets():
     addr = ("https://raw.githubusercontent.com"
             "/mottosso/be-presets/master/presets.json")
     response = get(addr)
+
     if response.status_code == 404:
         lib.echo("Could not connect with preset database")
         sys.exit(lib.PROGRAM_ERROR)
 
-    print response.status_code
     return dict((package["name"], package["repository"])
                 for package in response.json().get("presets"))
 
