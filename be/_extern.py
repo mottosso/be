@@ -215,39 +215,32 @@ def get(path, **kwargs):
 def repo_is_preset(repo):
     """Evaluate whether repo is a be package
 
+    Look for a matching gist first, then look
+    for a standard GitHub repository.
+
     Arguments:
-        repo (str): username/repo pair, e.g. mottosso/be-ad
+        repo (str): username/id pair, e.g. mottosso/be-ad
 
     """
 
-    package_template = "https://raw.githubusercontent.com"
-    package_template += "/{repo}/master/package.json"
-    package_path = package_template.format(repo=repo)
+    if _gist_is_preset(repo):
+        return True, "gist"
 
-    response = get(package_path)
-    if response.status_code == 404:
-        return False
+    if _repo_is_preset(repo):
+        return True, "repo"
 
-    try:
-        data = response.json()
-    except:
-        return False
-
-    if not data.get("type") == "bepreset":
-        return False
-
-    return True
+    return False
 
 
-def gist_is_preset(gist):
+def _gist_is_preset(repo):
     """Evaluate whether gist is a be package
 
     Arguments:
-        gist (str): gist/gistid pair e.g. gist/2bb4651a05af85711cde
+        gist (str): username/id pair e.g. mottosso/2bb4651a05af85711cde
 
     """
 
-    _, gistid = gist.split("/")
+    _, gistid = repo.split("/")
 
     gist_template = "https://api.github.com/gists/{}"
     gist_path = gist_template.format(gistid)
@@ -275,29 +268,31 @@ def gist_is_preset(gist):
     return True
 
 
-def gist_author(gist):
-    """Return author of gist
+def _repo_is_preset(repo):
+    """Evaluate whether GitHub repository is a be package
 
     Arguments:
-        gist (str): gist/gistid pair, e.g. gist/
+        gist (str): username/id pair e.g. mottosso/be-ad
 
     """
 
-    _, gistid = gist.split("/")
+    package_template = "https://raw.githubusercontent.com"
+    package_template += "/{repo}/master/package.json"
+    package_path = package_template.format(repo=repo)
 
-    gist_template = "https://api.github.com/gists/{}"
-    gist_path = gist_template.format(gistid)
-
-    response = get(gist_path)
+    response = get(package_path)
     if response.status_code == 404:
-        return None
+        return False
 
     try:
         data = response.json()
     except:
-        return None
+        return False
 
-    return data.get("owner", {}).get("login", None)
+    if not data.get("type") == "bepreset":
+        return False
+
+    return True
 
 
 def fetch_release(repo):
@@ -318,26 +313,20 @@ def pull_preset(repo, preset_dir):
         raise ValueError("Repository syntax is: "
                          "username/repo or gist/id (not %s)" % repo)
 
-    is_gist = False
-    if repo.split("/")[0] == "gist":
-        is_valid = gist_is_preset
-        is_gist = True
-    else:
-        is_valid = repo_is_preset
+    is_preset, source = repo_is_preset(repo)
+    username, repository = repo.split("/")
 
-    if not is_valid(repo):
+    if not is_preset:
         lib.echo("ERROR: %s does not appear to be a preset, "
                  "try --verbose for more information." % repo)
         sys.exit(lib.USER_ERROR)
 
-    if is_gist:
-        _, gistid = repo.split("/")
-        author = gist_author(repo)
-        url = "https://gist.github.com/%s/%s/download" % (author, gistid)
+    if source == "gist":
+        url = "https://gist.github.com/%s/download"
     else:
-        url = "https://api.github.com/repos/%s/tarball" % repo
+        url = "https://api.github.com/repos/%s/tarball"
 
-    r = get(url, stream=True)
+    r = get(url % repository, stream=True)
 
     tempdir = tempfile.mkdtemp()
     temppath = "/".join([tempdir, repo.rsplit("/", 1)[-1] + ".tar.gz"])
