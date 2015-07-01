@@ -127,8 +127,8 @@ def write_aliases(aliases, tempdir):
 
     """
 
-    environment = lib.environment()
-    if environment == "unix":
+    platform = lib.platform()
+    if platform == "unix":
         home_alias = "cd $BE_DEVELOPMENTDIR"
     else:
         home_alias = "cd %BE_DEVELOPMENTDIR%"
@@ -141,13 +141,13 @@ def write_aliases(aliases, tempdir):
     for alias, cmd in aliases.iteritems():
         path = os.path.join(tempdir, alias)
 
-        if environment == "windows":
+        if platform == "windows":
             path += ".bat"
 
         with open(path, "w") as f:
             f.write(cmd)
 
-        if environment == "unix":
+        if platform == "unix":
             # Make executable on unix systems
             st = os.stat(path)
             os.chmod(path, st.st_mode | stat.S_IXUSR

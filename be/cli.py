@@ -502,18 +502,31 @@ def tab(topics, complete):
 
 @main.command()
 def activate():
+    """Enter into an environment with support for tab-completion
+
+    This command drops you into a subshell, similar to the one
+    generated via `be in ...`, except no topic is present and
+    instead it enables tab-completion for supported shells.
+
+    See documentation for further information.
+    https://github.com/mottosso/be/wiki/cli
+
+    """
+
     parent = lib.parent()
     cmd = lib.cmd(parent)
 
     # Store reference to calling shell
     context = lib.context("")
     context["BE_SHELL"] = parent
-    context["BASH_ENV"] = os.path.join(
-        os.path.dirname(__file__), "_autocomplete.sh")
+
+    if lib.platform() == "unix":
+        context["BE_TABCOMPLETION"] = os.path.join(
+            os.path.dirname(__file__), "_autocomplete.sh").replace("\\", "/")
 
     context.pop("BE_ACTIVE")
 
-    sys.exit(subprocess.call(cmd, shell=True, env=context))
+    sys.exit(subprocess.call(cmd, env=context))
 
 
 @main.command()

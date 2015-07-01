@@ -1,15 +1,27 @@
-# DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-# export BASH_ENV=$DIR/_autocomplete.sh
-
 # be subshell, do not call directly.
-if ! [ "$BE_ENTER" = "" ]; then cd $BE_DEVELOPMENTDIR; fi
 
-# Run script
-if ! [ "$BE_SCRIPT" = "" ];then . $BE_SCRIPT;fi
+# Create a temporary file to which we will write
+# the bash initialisation script.
+TMPFILE=$(mktemp)
+echo ". ~/.bashrc" > $TMPFILE
 
-# if [ "$BE_TABCOMPLETION" = "1" ]; then
-#     # Run whichever shell called us
-#     "$BE_SHELL"
-# fi
+# Passed via --enter
+if ! [ "$BE_ENTER" = "" ]; then
+  echo "cd $BE_DEVELOPMENTDIR" >> $TMPFILE
+else
+  echo "cd $BE_CWD" >> $TMPFILE
+fi
 
-"$BE_SHELL"
+# Run script from be.yaml
+if ! [ "$BE_SCRIPT" = "" ]; then
+  echo ". $BE_SCRIPT" >> $TMPFILE; fi
+
+# Source tab completion
+if ! [ "$BE_TABCOMPLETION" = "" ]; then
+  echo ". $BE_TABCOMPLETION" >> $TMPFILE; fi
+
+# Add stuff to the temporary file
+echo "rm -f $TMPFILE" >> $TMPFILE
+
+# Start the new bash shell 
+"$BE_SHELL" --rcfile $TMPFILE

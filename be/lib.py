@@ -17,6 +17,9 @@ TEMPLATE_ERROR = 4
 FIXED = 1 << 0
 POSITIONAL = 1 << 1
 
+self = sys.modules[__name__]
+self._parent = None
+
 
 def parent():
     """Determine subshell matching the currently running shell
@@ -35,8 +38,11 @@ def parent():
 
     """
 
+    if self._parent:
+        return self._parent
+
     if "BE_SHELL" in os.environ:
-        executable = os.environ["BE_SHELL"]
+        self._parent = os.environ["BE_SHELL"]
     else:
         # If a shell is not provided, rely on `psutil`
         # to look at the calling process name.
@@ -50,30 +56,14 @@ def parent():
                 "/environment#read-environment-variables")
 
         parent = psutil.Process(os.getpid()).parent()
-        executable = parent.exe()
+        self._parent = str(parent.exe())
 
-    return str(executable)
+    return self._parent
 
 
-def environment():
-    """Return the active environment, e.g. windows or unix"""
-    if "BE_SHELL" in os.environ:
-        executable = os.environ["BE_SHELL"]
-    else:
-        # If a shell is not provided, rely on `psutil`
-        # to look at the calling process name.
-        try:
-            import psutil
-        except ImportError:
-            raise ImportError(
-                "No shell provided, see documentation for "
-                "BE_SHELL for more information.\n"
-                "https://github.com/mottosso/be/wiki"
-                "/environment#read-environment-variables")
-
-        parent = psutil.Process(os.getpid()).parent()
-        executable = parent.exe()
-
+def platform():
+    """Return platform for the current shell, e.g. windows or unix"""
+    executable = parent()
     basename = os.path.basename(executable)
     basename, _ = os.path.splitext(basename)
 
@@ -95,8 +85,9 @@ def cmd(parent):
 
     shell_name = os.path.basename(parent).rsplit(".", 1)[0]
 
-    # Support for Bash
     dirname = os.path.dirname(__file__)
+
+    # Support for Bash
     if shell_name in ("bash", "sh"):
         shell = os.path.join(dirname, "_shell.sh").replace("\\", "/")
         cmd = [parent.replace("\\", "/"), shell]
@@ -104,7 +95,7 @@ def cmd(parent):
     # Support for Cmd
     elif shell_name in ("cmd",):
         shell = os.path.join(dirname, "_shell.bat").replace("\\", "/")
-        cmd = [parent, "/C", shell]
+        cmd = [parent, "/K", shell]
 
     # Support for Powershell
     elif shell_name in ("powershell",):
@@ -133,13 +124,13 @@ def context(project):
         "BE_USER": "",
         "BE_SCRIPT": "",
         "BE_PYTHON": "",
-        "BE_ENTER": "0",
+        "BE_ENTER": "",
         "BE_TEMPDIR": "",
         "BE_PRESETSDIR": "",
         "BE_GITHUB_API_TOKEN": "",
         "BE_ENVIRONMENT": "",
         "BE_BINDING": "",
-        "BE_TABCOMPLETION": "1"
+        "BE_TABCOMPLETION": ""
     }
 
     environment.update(os.environ)

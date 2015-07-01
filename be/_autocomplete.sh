@@ -1,8 +1,5 @@
-echo Running _autocomplete.sh
-
 _be () {
   COMPREPLY=();
-  echo Completing
 
   local cur=${COMP_WORDS[COMP_CWORD]}
   
@@ -26,6 +23,4 @@ _be () {
   return 0
 }
 
-echo Setting up autocomplete..
 complete -F _be -o bashdefault be
-echo Done
