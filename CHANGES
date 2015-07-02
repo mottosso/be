@@ -1,6 +1,11 @@
 be Changelog
 =================
 
+Version 0.3.1
+-------------
+
+- Fix for incorrect development directory when using `be activate` (#30)
+
 Version 0.3.0
 -------------
 
