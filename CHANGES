@@ -1,6 +1,11 @@
 be Changelog
 =================
 
+Version 0.3.2
+-------------
+
+- Fix for broken custom environment in be.yaml (#31)
+
 Version 0.3.1
 -------------
 
