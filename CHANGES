@@ -1,6 +1,11 @@
 be Changelog
 =================
 
+Version 0.3.3
+-------------
+
+- Minor bugfix, broken `be activate` (time to start thinking about building a test-suite)
+
 Version 0.3.2
 -------------
 

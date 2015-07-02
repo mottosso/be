@@ -524,8 +524,7 @@ def activate():
         context["BE_TABCOMPLETION"] = os.path.join(
             os.path.dirname(__file__), "_autocomplete.sh").replace("\\", "/")
 
-    context.pop("BE_ACTIVE")
-    context.pop("BE_ACTIVE")
+    context.pop("BE_ACTIVE", None)
 
     sys.exit(subprocess.call(cmd, env=context))
 
