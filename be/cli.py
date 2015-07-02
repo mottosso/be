@@ -251,9 +251,9 @@ def in_(ctx, topics, yes, as_, enter):
 
     # Override inherited context
     # with that coming from be.yaml.
-    if "context" in be:
+    if "environment" in be:
         parsed = _format.parse_environment(
-            fields=be["context"],
+            fields=be["environment"],
             context=context,
             topics=topics)
         context["BE_ENVIRONMENT"] = " ".join(parsed.keys())
