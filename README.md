@@ -6,7 +6,7 @@
 
 **This project is currently pre 1.0. Most of the functionality is there, however there are various improvements to be made. `be` is not *yet* ready for daily use.**
 
-![untitled](https://cloud.githubusercontent.com/assets/2152766/8232888/cc713872-15ca-11e5-8a50-3749cc1bd9f7.gif)
+![untitled](https://cloud.githubusercontent.com/assets/2152766/8471653/8bfc0ab0-2092-11e5-935f-5da1f5209e4f.gif)
 
 be is a directory and environment management system for creative projects.
 
