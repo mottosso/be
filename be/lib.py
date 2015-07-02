@@ -109,6 +109,19 @@ def cmd(parent):
 
 
 def context(project):
+    """Produce the be environment
+
+    The environment is an exact replica of the active
+    environment of the current process, with a few
+    additional variables, all of which are listed below.
+
+    The `be` environment are considered "defaults" that
+    may be overwritten by the incoming environment, with
+    the exception of BE_CWD which must always be the
+    real current working directory.
+
+    """
+
     environment = {
         "BE_PROJECT": project,
         "BE_ALIASDIR": "",
@@ -133,7 +146,12 @@ def context(project):
         "BE_TABCOMPLETION": ""
     }
 
-    environment.update(os.environ)
+    # Do not overwrite BE_CWD
+    # from incoming environment.
+    environ = os.environ.copy()
+    environ.pop("BE_CWD", None)
+
+    environment.update(environ)
 
     return environment
 

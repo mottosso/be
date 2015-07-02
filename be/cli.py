@@ -525,6 +525,7 @@ def activate():
             os.path.dirname(__file__), "_autocomplete.sh").replace("\\", "/")
 
     context.pop("BE_ACTIVE")
+    context.pop("BE_ACTIVE")
 
     sys.exit(subprocess.call(cmd, env=context))
 
