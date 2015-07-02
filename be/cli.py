@@ -517,7 +517,7 @@ def activate():
     cmd = lib.cmd(parent)
 
     # Store reference to calling shell
-    context = lib.context("")
+    context = lib.context()
     context["BE_SHELL"] = parent
 
     if lib.platform() == "unix":

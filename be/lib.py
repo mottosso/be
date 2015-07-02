@@ -108,7 +108,7 @@ def cmd(parent):
     return cmd
 
 
-def context(project):
+def context(project=""):
     """Produce the be environment
 
     The environment is an exact replica of the active
@@ -122,17 +122,19 @@ def context(project):
 
     """
 
-    environment = {
+    environment = os.environ.copy()
+    environment.update({
         "BE_PROJECT": project,
+        "BE_PROJECTROOT": (
+            os.path.join(_extern.cwd(), project).replace("\\", "/")
+            if project else ""),
+        "BE_PROJECTSROOT": _extern.cwd(),
         "BE_ALIASDIR": "",
         "BE_CWD": _extern.cwd(),
         "BE_CD": "",
         "BE_ROOT": "",
         "BE_TOPICS": "",
         "BE_DEVELOPMENTDIR": "",
-        "BE_PROJECTROOT": os.path.join(
-            _extern.cwd(), project).replace("\\", "/"),
-        "BE_PROJECTSROOT": _extern.cwd(),
         "BE_ACTIVE": "1",
         "BE_USER": "",
         "BE_SCRIPT": "",
@@ -144,14 +146,7 @@ def context(project):
         "BE_ENVIRONMENT": "",
         "BE_BINDING": "",
         "BE_TABCOMPLETION": ""
-    }
-
-    # Do not overwrite BE_CWD
-    # from incoming environment.
-    environ = os.environ.copy()
-    environ.pop("BE_CWD", None)
-
-    environment.update(environ)
+    })
 
     return environment
 

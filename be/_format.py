@@ -19,8 +19,10 @@ def pos_development_directory(templates,
     Arguments:
         templates (dict): templates.yaml
         inventory (dict): inventory.yaml
+        context (dict): The be context, from lib.context()
         topics (list): Arguments to `in`
         user (str): Current `be` user
+        item (str): Item from template-binding address
 
     """
 

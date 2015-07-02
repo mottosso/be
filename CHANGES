@@ -1,6 +1,11 @@
 be Changelog
 =================
 
+Version 0.3.4
+-------------
+
+- Native environment is now overwritten by be (#32)
+
 Version 0.3.3
 -------------
 
