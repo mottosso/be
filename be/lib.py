@@ -56,6 +56,11 @@ def parent():
                 "/environment#read-environment-variables")
 
         parent = psutil.Process(os.getpid()).parent()
+
+        basename = os.path.basename(parent)
+        if "be" in basename:
+            parent = parent.parent()
+
         self._parent = str(parent.exe())
 
     return self._parent

@@ -514,7 +514,12 @@ def activate():
     """
 
     parent = lib.parent()
-    cmd = lib.cmd(parent)
+
+    try:
+        cmd = lib.cmd(parent)
+    except SystemError as exc:
+        lib.echo(exc)
+        sys.exit(lib.PROGRAM_ERROR)
 
     # Store reference to calling shell
     context = lib.context()
