@@ -57,8 +57,10 @@ def parent():
 
         parent = psutil.Process(os.getpid()).parent()
 
-        basename = os.path.basename(parent.exe())
-        if "be" in basename:
+        # `pip install` creates an additional executable
+        # that tricks the above mechanism to think of it
+        # as the parent shell. See #34 for more.
+        if parent.name() in ("be", "be.exe"):
             parent = parent.parent()
 
         self._parent = str(parent.exe())
