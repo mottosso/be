@@ -57,7 +57,7 @@ def parent():
 
         parent = psutil.Process(os.getpid()).parent()
 
-        basename = os.path.basename(parent)
+        basename = os.path.basename(parent.exe())
         if "be" in basename:
             parent = parent.parent()
 
