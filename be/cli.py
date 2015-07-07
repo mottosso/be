@@ -226,7 +226,7 @@ def in_(ctx, topics, yes, as_, enter):
         script = "\n".join(be["python"])
         context["BE_PYTHON"] = script
         try:
-            exec(script in {"__name__": __name__}, {})
+            exec script in {"__name__": __name__}
         except Exception as e:
             lib.echo("ERROR: %s" % e)
 
