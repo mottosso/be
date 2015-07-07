@@ -20,12 +20,11 @@ import getpass
 import tempfile
 import subprocess
 
-import _format
-import _extern
-import lib
+from . import lib
+from . import _extern
 
-from version import version
-from vendor import click
+from . import version
+from .vendor import click
 
 self = type("Scope", (object,), {})()
 self.isactive = lambda: "BE_ACTIVE" in os.environ
@@ -54,10 +53,8 @@ def main(verbose):
         $ be ls
         - spiderman
         $ be in spiderman shot1 animation
-        $ be dump
-        BE_PROJECT=spiderman
-        BE_ITEM=peter
-        BE_TASK=model
+        $ pwd
+        /projects/spiderman/film/shot1/animation
 
     """
 
@@ -120,7 +117,7 @@ def in_(ctx, topics, yes, as_, enter):
         topic_syntax = lib.POSITIONAL
         project = topics[0]
 
-    project_dir = _format.project_dir(_extern.cwd(), project)
+    project_dir = lib.project_dir(_extern.cwd(), project)
     if not os.path.exists(project_dir):
         lib.echo("Project \"%s\" not found. " % project)
         lib.echo("\nAvailable:")
@@ -128,7 +125,7 @@ def in_(ctx, topics, yes, as_, enter):
         sys.exit(lib.USER_ERROR)
 
     # Boot up
-    context = lib.context(project)
+    context = lib.context(root=_extern.cwd(), project=project)
 
     be = _extern.load_be(project)
     templates = _extern.load_templates(project)
@@ -155,8 +152,8 @@ def in_(ctx, topics, yes, as_, enter):
 
     try:
         key = be.get("templates", {}).get("key") or "{1}"
-        item = _format.item_from_topics(key, topics)
-        binding = _format.binding_from_item(inventory, item)
+        item = lib.item_from_topics(key, topics)
+        binding = lib.binding_from_item(inventory, item)
         context["BE_BINDING"] = binding
     except IndexError as exc:
         lib.echo("At least %s topics are required" % str(exc))
@@ -175,7 +172,7 @@ def in_(ctx, topics, yes, as_, enter):
     # based on the template-, not topic-syntax.
     if template_syntax & lib.POSITIONAL:
         try:
-            development_dir = _format.pos_development_directory(
+            development_dir = lib.pos_development_directory(
                 templates=templates,
                 inventory=inventory,
                 context=context,
@@ -192,7 +189,7 @@ def in_(ctx, topics, yes, as_, enter):
             sys.exit(lib.USER_ERROR)
 
     else:  # FIXED topic_syntax
-        development_dir = _format.fixed_development_directory(
+        development_dir = lib.fixed_development_directory(
             templates,
             inventory,
             topics,
@@ -229,7 +226,7 @@ def in_(ctx, topics, yes, as_, enter):
         script = "\n".join(be["python"])
         context["BE_PYTHON"] = script
         try:
-            exec script in {"__name__": __name__}
+            exec(script in {"__name__": __name__}, {})
         except Exception as e:
             lib.echo("ERROR: %s" % e)
 
@@ -246,13 +243,13 @@ def in_(ctx, topics, yes, as_, enter):
     context["BE_ALIASDIR"] = aliases_dir
 
     # Parse redirects
-    _format.parse_redirect(
+    lib.parse_redirect(
         be.get("redirect", {}), topics, context)
 
     # Override inherited context
     # with that coming from be.yaml.
     if "environment" in be:
-        parsed = _format.parse_environment(
+        parsed = lib.parse_environment(
             fields=be["environment"],
             context=context,
             topics=topics)
@@ -309,7 +306,7 @@ def new(preset, name, silent, update):
             name = lib.random_name()
             count += 1
 
-    project_dir = _format.project_dir(_extern.cwd(), name)
+    project_dir = lib.project_dir(_extern.cwd(), name)
     if os.path.exists(project_dir):
         lib.echo("\"%s\" already exists" % name)
         sys.exit(lib.USER_ERROR)
@@ -455,42 +452,56 @@ def tab(topics, complete):
     if len(topics) > 1 and topics[-1] == topics[-2]:
         topics.pop()
 
-    # Return projects
+    # Suggest projects
     if len(topics) == 0:
-        projects = lib.list_projects()
+        projects = lib.list_projects(root=_extern.cwd())
         sys.stdout.write(" ".join(projects))
 
-    # Return inventory
     elif len(topics) == 1:
         project = topics[0]
-        projects = lib.list_projects()
+        projects = lib.list_projects(root=_extern.cwd())
 
-        # Check to see if the project name is complete
+        # Complete project
         if not complete:
             projects = [i for i in projects if i.startswith(project)]
             sys.stdout.write(" ".join(projects))
         else:
-            # Return inventory
-            inventory = lib.list_inventory(project)
+            # Suggest items from inventory
+            inventory = _extern.load_inventory(project)
+            inventory = lib.list_inventory(inventory)
             items = [i for i, b in inventory]
             sys.stdout.write(" ".join(items))
 
     else:
         project, item = topics[:2]
 
-        # Check to see if the inventory name is complete
+        # Complete inventory item
         if len(topics) == 2 and not complete:
-            inventory = lib.list_inventory(project)
+            inventory = _extern.load_inventory(project)
+            inventory = lib.list_inventory(inventory)
             items = [i for i, b in inventory]
             items = [i for i in items if i.startswith(item)]
             sys.stdout.write(" ".join(items))
 
+        # Suggest items from template
         else:
             try:
+                be = _extern.load_be(project)
+                templates = _extern.load_templates(project)
+                inventory = _extern.load_inventory(project)
+
                 item = topics[-1]
-                items = lib.list_pattern(topics)
+                items = lib.list_template(root=_extern.cwd(),
+                                          topics=topics,
+                                          templates=templates,
+                                          inventory=inventory,
+                                          be=be)
                 if not complete:
-                    items = lib.list_pattern(topics[:-1])
+                    items = lib.list_template(root=_extern.cwd(),
+                                              topics=topics[:-1],
+                                              templates=templates,
+                                              inventory=inventory,
+                                              be=be)
                     items = [i for i in items if i.startswith(item)]
                     sys.stdout.write(" ".join(items) + " ")
                 else:
@@ -522,7 +533,7 @@ def activate():
         sys.exit(lib.PROGRAM_ERROR)
 
     # Store reference to calling shell
-    context = lib.context()
+    context = lib.context(root=_extern.cwd())
     context["BE_SHELL"] = parent
 
     if lib.platform() == "unix":
@@ -565,20 +576,29 @@ def ls(topics):
 
     # List projects
     if len(topics) == 0:
-        for project in lib.list_projects():
+        for project in lib.list_projects(root=_extern.cwd()):
             lib.echo("- %s (project)" % project)
         sys.exit(lib.NORMAL)
 
     # List inventory of project
     elif len(topics) == 1:
-        for item, binding in lib.list_inventory(project=topics[0]):
+        inventory = _extern.load_inventory(topics[0])
+        for item, binding in lib.list_inventory(inventory):
             lib.echo("- %s (%s)" % (item, binding))
         sys.exit(lib.NORMAL)
 
     # List specific portion of template
     else:
         try:
-            for item in lib.list_pattern(topics):
+            project = topics[0]
+            be = _extern.load_be(project)
+            templates = _extern.load_templates(project)
+            inventory = _extern.load_inventory(project)
+            for item in lib.list_template(root=_extern.cwd(),
+                                          topics=topics,
+                                          templates=templates,
+                                          inventory=inventory,
+                                          be=be):
                 lib.echo("- %s" % item)
         except IndexError as exc:
             lib.echo(exc)
@@ -641,8 +661,8 @@ def preset_find(query):
     """Find preset from hub
 
     \b
-    $ be find mypreset
-    https://github.com/mottosso/be-mypreset.git
+    $ be find ad
+    https://github.com/mottosso/be-ad.git
 
     """
 
@@ -667,9 +687,7 @@ def dump():
     Usage:
         $ be dump
         Prefixed:
-        - BE_PROJECT=spiderman
-        - BE_ITEM=peter
-        - BE_TYPE=model
+        - BE_TOPICS=hulk bruce animation
         - ...
 
     """
@@ -710,7 +728,7 @@ def dump():
 
 @main.command(name="?")
 def what():
-    """Print current context"""
+    """Print current topics"""
 
     if not self.isactive():
         lib.echo("No topic")

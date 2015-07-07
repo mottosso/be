@@ -1,6 +1,11 @@
 be Changelog
 =================
 
+Version 0.3.6
+-------------
+
+- Refactoring of _format.py -> lib.py to avoid circular dependency
+
 Version 0.3.5
 -------------
 

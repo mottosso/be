@@ -17,10 +17,10 @@ import shutil
 import tarfile
 import tempfile
 
-from vendor import yaml
-from vendor import requests
+from .vendor import yaml
+from .vendor import requests
 
-import lib
+from . import lib
 
 # Environment variables
 BE_PRESETSDIR = "BE_PRESETSDIR"
