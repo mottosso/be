@@ -209,6 +209,7 @@ def in_(ctx, topics, yes, as_, enter):
             create = True
         else:
             sys.stdout.write("No development directory found. Create? [Y/n]: ")
+            sys.stdout.flush()
             if raw_input().lower() in ("", "y", "yes"):
                 create = True
         if create:
