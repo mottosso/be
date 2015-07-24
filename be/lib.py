@@ -3,8 +3,10 @@ import os
 import sys
 import random
 
+from .vendor import yaml
 from . import _data
 
+# Exit codes
 NORMAL = 0
 PROGRAM_ERROR = 1
 USER_ERROR = 2
@@ -77,7 +79,7 @@ def platform():
     if basename in ("cmd", "powershell"):
         return "windows"
 
-    raise SystemError("Unsupported shell")
+    raise SystemError("Unsupported shell: %s" % basename)
 
 
 def cmd(parent):
@@ -119,11 +121,6 @@ def context(root, project=""):
     The environment is an exact replica of the active
     environment of the current process, with a few
     additional variables, all of which are listed below.
-
-    The `be` environment are considered "defaults" that
-    may be overwritten by the incoming environment, with
-    the exception of BE_CWD which must always be the
-    real current working directory.
 
     """
 
@@ -196,12 +193,21 @@ def isproject(path):
 
 
 def echo(text, silent=False, newline=True):
+    """Print to the console
+
+    Arguments:
+        text (str): Text to print to the console
+        silen (bool, optional): Whether or not to produce any output
+        newline (bool, optional): Whether or not to append a newline.
+
+    """
+
     if silent:
         return
     print(text) if newline else sys.stdout.write(text)
 
 
-def list_projects(root):
+def list_projects(root, backend=os.listdir):
     """List projects at `root`
 
     Arguments:
@@ -210,7 +216,7 @@ def list_projects(root):
 
     """
     projects = list()
-    for project in sorted(os.listdir(root)):
+    for project in sorted(backend(root)):
         abspath = os.path.join(root, project)
         if not isproject(abspath):
             continue
@@ -237,7 +243,7 @@ def list_inventory(inventory):
     return items
 
 
-def list_template(root, topics, templates, inventory, be):
+def list_template(root, topics, templates, inventory, be, absolute=False):
     """List contents for resolved template
 
     Resolve a template as far as possible via the given `topics`.
@@ -282,6 +288,7 @@ def list_template(root, topics, templates, inventory, be):
     trimmed_pattern = pattern[:index_end]
 
     # If there aren't any more positional arguments, we're done
+    print trimmed_pattern
     if not re.findall("{[\d]+}", pattern[index_end:]):
         return []
 
@@ -306,10 +313,14 @@ def list_template(root, topics, templates, inventory, be):
 
     items = list()
     for dirname in os.listdir(path):
-        if not os.path.isdir(os.path.join(path, dirname)):
+        abspath = os.path.join(path, dirname).replace("\\", "/")
+        if not os.path.isdir(abspath):
             continue
 
-        items.append(dirname)
+        if absolute:
+            items.append(abspath)
+        else:
+            items.append(dirname)
 
     return items
 
@@ -389,9 +400,11 @@ def fixed_development_directory(templates, inventory, topics, user):
     """Return absolute path to development directory
 
     Arguments:
-        project (str): Name of project
-        item (str): Name of item within project
-        task (str): Family of item
+        templates (dict): templates.yaml
+        inventory (dict): inventory.yaml
+        context (dict): The be context, from context()
+        topics (list): Arguments to `in`
+        user (str): Current `be` user
 
     """
 
@@ -547,7 +560,7 @@ def parse_environment(fields, context, topics):
         - Lists, e.g. ["/path1", "/path2"]
         - Environment variable references, via $
         - Replacement field references, e.g. {key}
-        - Topic eferences, e.g. {1}
+        - Topic references, e.g. {1}
 
     """
 
@@ -591,7 +604,7 @@ def parse_environment(fields, context, topics):
         Supports both positional and BE_-prefixed variables.
 
         Example:
-            BE_MYKEY -> "{myvalue}" from `BE_MYKEY`
+            BE_MYKEY -> "{mykey}" from `BE_MYKEY`
             {1} -> "{mytask}" from `be in myproject mytask`
 
         Returns:
@@ -642,3 +655,24 @@ def parse_redirect(redirect, topics, context):
             continue
 
         context[map_dest] = context[map_source]
+
+
+def slice(index, template):
+    """Slice a template based on it's positional argument
+
+    Arguments:
+        index (int): Position at which to slice
+        template (str): Template to slice
+
+    Example:
+        >>> slice(0, "{cwd}/{0}/assets/{1}/{2}")
+        "{cwd}/{0}"
+        >>> slice(1, "{cwd}/{0}/assets/{1}/{2}")
+        "{cwd}/{0}/assets/{1}"
+    """
+
+    try:
+        return re.match("^.*{[%i]}" % index, template).group()
+    except AttributeError:
+        raise ValueError("Index %i not found in template: %s"
+                         % (index, template))
