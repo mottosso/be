@@ -16,13 +16,13 @@ def ls(*topic, **kwargs):
         absolute (bool, optional): Whether to return relative or absolute paths
 
     Example:
-        >>> ls()
+        >> ls()
         /projects/thedeal
         /projects/hulk
-        >>> ls("thedeal")
+        >> ls("thedeal")
         /projects/thedeal/assets/ben
         /projects/thedeal/assets/table
-        >>> ls("thedeal", "ben")
+        >> ls("thedeal", "ben")
         /projects/thedeal/assets/ben/rigging
         /projects/thedeal/assets/ben/modeling
 
@@ -89,9 +89,9 @@ def topics(path, template=None, root=os.getcwd()):
         path (str): Absolute path
 
     Example:
-        >>> parse(r"c:\projects\hulk\assets\bruce\rigging",
-        ...       root="c:\projects",
-        ...       template="{cwd}/{0}/assets/{1}/{2}")
+        >> parse(r"c:\projects\hulk\assets\bruce\rigging",
+        ...      root="c:\projects",
+        ...      template="{cwd}/{0}/assets/{1}/{2}")
         ("hulk", "bruce", "rigging")
 
     """

@@ -3,7 +3,6 @@ import os
 import sys
 import random
 
-from .vendor import yaml
 from . import _data
 
 # Exit codes
@@ -666,9 +665,10 @@ def slice(index, template):
 
     Example:
         >>> slice(0, "{cwd}/{0}/assets/{1}/{2}")
-        "{cwd}/{0}"
+        '{cwd}/{0}'
         >>> slice(1, "{cwd}/{0}/assets/{1}/{2}")
-        "{cwd}/{0}/assets/{1}"
+        '{cwd}/{0}/assets/{1}'
+
     """
 
     try:
