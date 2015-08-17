@@ -221,7 +221,7 @@ def in_(ctx, topics, yes, as_, enter):
     # Parse be.yaml
     if "script" in be:
         context["BE_SCRIPT"] = _extern.write_script(
-            be["script"], tempdir)
+            be["script"], tempdir).replace("\\", "/")
 
     if "python" in be:
         script = "\n".join(be["python"])
