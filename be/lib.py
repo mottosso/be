@@ -585,15 +585,12 @@ def parse_environment(fields, context, topics):
 
         def repl(match):
             key = pattern[match.start():match.end()].strip("$")
-            if key not in context:
-                sys.stderr.write("ERROR: Unavailable "
-                                 "fields variable: \"%s\"" % key)
-                sys.exit(USER_ERROR)
-            return context[key]
+            return context.get(key)
 
         pat = re.compile("\$\w+", re.IGNORECASE)
         for key, pattern in fields.copy().iteritems():
-            fields[key] = pat.sub(repl, pattern)
+            fields[key] = pat.sub(repl, pattern) \
+                          .strip(os.pathsep)  # Remove superflous separators
 
         return fields
 
