@@ -1,6 +1,13 @@
 be Changelog
 =================
 
+Version 0.3.7
+-------------
+
+- Feature: Added customisable BE_CWD to customise root of where projects are located (#41)
+- Bugfix: environment key in be.yaml can now include non-existing keys, they will simply not be added. (#40)
+- Bugfix: MSYS2 had trouble with custom `script` in be.yaml
+
 Version 0.3.6
 -------------
 
