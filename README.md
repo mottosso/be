@@ -3,6 +3,7 @@
 [![Build Status](https://travis-ci.org/mottosso/be.svg?branch=master)](https://travis-ci.org/mottosso/be)
 [![Code Health](https://landscape.io/github/mottosso/be/master/landscape.svg?style=flat)](https://landscape.io/github/mottosso/be/master)
 [![PyPI image](https://badge.fury.io/py/be.svg)](http://badge.fury.io/py/be)
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/mottosso/be)
 
 **This project is currently pre 1.0. Most of the functionality is there, however there are various improvements to be made. `be` is not *yet* ready for daily use.**
 
