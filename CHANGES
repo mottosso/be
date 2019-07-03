@@ -1,6 +1,11 @@
 be Changelog
 =================
 
+Version 0.3.8
+-------------
+
+- Bugfix: Linux command-line support restored (@mdilena, #52)
+
 Version 0.3.7
 -------------
 
