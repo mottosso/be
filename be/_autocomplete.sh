@@ -2,10 +2,10 @@ _be () {
   COMPREPLY=();
 
   local cur=${COMP_WORDS[COMP_CWORD]}
-  
+
   if [ ${COMP_CWORD} -ge 2 ]; then
     if [ ${COMP_WORDS[1]} == "in" ]; then
-      
+
       # Determine whether the last-entered
       # argument is complete. $cur will either
       # be empty, or contain the currently
