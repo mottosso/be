@@ -38,5 +38,5 @@ setup(
     entry_points={
         "console_scripts": ["be = be.cli:main"]
     },
-    install_requires=["psutil==2.2.1"]
+    install_requires=["psutil==5.6.6"]
 )
